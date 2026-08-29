@@ -1,0 +1,2639 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>OrdenPro</title>
+
+    <!-- PWA: manifest e íconos -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="theme-color" content="#1e293b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="OrdenPro">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Librerías para generar PDF descargable -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-area, #print-area * {
+                visibility: visible;
+            }
+            #print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 6mm !important;
+                margin: 0;
+            }
+            #print-area > div {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            .no-print {
+                display: none !important;
+            }
+            @page {
+                size: A4;
+                margin: 10mm;
+            }
+        }
+        /* Notificación de instalación / actualización */
+        #installToast {
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        /* Pestañas del asistente de creación de órdenes */
+        .wizard-tab {
+            color: #94a3b8;
+        }
+        .wizard-tab:hover {
+            background-color: rgba(51, 65, 85, 0.6);
+        }
+        .wizard-tab.active {
+            background-color: #2563eb;
+            color: #ffffff;
+        }
+        .view-tab {
+            background-color: transparent;
+            color: #94a3b8;
+        }
+        .view-tab:hover {
+            background-color: rgba(51, 65, 85, 0.6);
+        }
+        .view-tab.active {
+            background-color: #334155;
+            color: #ffffff;
+        }
+        #tabOrdersBtn.active {
+            background-color: #2563eb;
+            color: #ffffff;
+        }
+        #tabUrgentBtn.active {
+            background-color: #dc2626;
+            color: #ffffff;
+        }
+        #tabQuotesBtn.active {
+            background-color: #d97706;
+            color: #ffffff;
+        }
+        #tabInvoicesBtn.active {
+            background-color: #7c3aed;
+            color: #ffffff;
+        }
+        .quote-subtab {
+            background-color: transparent;
+            color: #94a3b8;
+            border: 1px solid #334155;
+        }
+        .quote-subtab:hover {
+            background-color: rgba(51, 65, 85, 0.6);
+        }
+        .quote-subtab.active {
+            background-color: #334155;
+            color: #ffffff;
+            border-color: #64748b;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+
+    <!-- Encabezado de la App -->
+    <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-30 no-print shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center flex-wrap gap-2">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 p-2 rounded-lg text-white">
+                    <i class="fa-solid fa-clipboard-list text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-wide text-white">OrdenPro</h1>
+                    <p class="text-xs text-slate-400">Órdenes, presupuestos y facturas</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="installBtn" onclick="installApp()" title="Instalar App" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-medium px-3 py-2 rounded-lg items-center space-x-1 transition">
+                    <i class="fa-solid fa-mobile-screen-button"></i>
+                    <span class="hidden md:inline">Instalar App</span>
+                </button>
+                <!-- Botones de Copia de Seguridad -->
+                <button onclick="exportData()" title="Guardar Copia de Seguridad" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium px-2.5 py-1.5 rounded-lg flex items-center space-x-1 transition">
+                    <i class="fa-solid fa-download text-amber-400"></i>
+                    <span class="hidden lg:inline">Respaldar</span>
+                </button>
+                <label title="Restaurar Copia" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium px-2.5 py-1.5 rounded-lg flex items-center space-x-1 transition cursor-pointer">
+                    <i class="fa-solid fa-upload text-emerald-400"></i>
+                    <span class="hidden lg:inline">Restaurar</span>
+                    <input type="file" id="importFile" onchange="importData(event)" accept=".json" class="hidden">
+                </label>
+                <button onclick="openModal('new', null, 'quote')" class="bg-amber-600 hover:bg-amber-500 text-white font-medium px-2.5 py-1.5 rounded-lg flex items-center space-x-1.5 transition shadow text-xs sm:text-sm">
+                    <i class="fa-solid fa-file-pen"></i>
+                    <span>Presupuesto</span>
+                </button>
+                <button onclick="openModal('new', null, 'order')" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-2.5 py-1.5 rounded-lg flex items-center space-x-1.5 transition shadow text-xs sm:text-sm">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Órden</span>
+                </button>
+                <button onclick="switchView('invoices')" class="bg-violet-600 hover:bg-violet-500 text-white font-medium px-2.5 py-1.5 rounded-lg flex items-center space-x-1.5 transition shadow text-xs sm:text-sm">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                    <span>Factura</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Pestañas Órdenes / Presupuestos / Urgentes / Facturas -->
+        <div class="max-w-7xl mx-auto px-4 pb-2 grid grid-cols-4 sm:flex gap-1.5 sm:gap-2">
+            <button id="tabOrdersBtn" onclick="switchView('orders')" class="view-tab px-1 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-sm font-medium transition flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5">
+                <i class="fa-solid fa-clipboard-list"></i> <span>Órdenes</span>
+            </button>
+            <button id="tabUrgentBtn" onclick="switchView('urgent')" class="view-tab px-1 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-sm font-medium transition flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5">
+                <i class="fa-solid fa-truck-fast text-amber-400"></i> <span>Urgentes</span>
+            </button>
+            <button id="tabQuotesBtn" onclick="switchView('quotes')" class="view-tab px-1 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-sm font-medium transition flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5">
+                <i class="fa-solid fa-file-pen"></i> <span>Presup.</span>
+            </button>
+            <button id="tabInvoicesBtn" onclick="switchView('invoices')" class="view-tab px-1 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-sm font-medium transition flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5">
+                <i class="fa-solid fa-file-invoice-dollar"></i> <span>Facturas</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 space-y-6 no-print">
+
+        <!-- Banner de instalación (se oculta si ya está instalada o el navegador no lo soporta) -->
+        <div id="installBanner" class="bg-slate-800 border border-slate-700 p-4 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+            <div class="flex items-start gap-3">
+                <div class="bg-blue-500/20 text-blue-400 p-2.5 rounded-lg mt-1 md:mt-0">
+                    <i class="fa-solid fa-circle-info text-xl"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold text-white">Instala la app en tu móvil</p>
+                    <p class="text-xs text-slate-300 mt-0.5" id="installInstructions">
+                        Toca "Instalar App" arriba, o en el menú del navegador elige "Añadir a pantalla de inicio".
+                        Funciona sin conexión y se abre como una app normal, con su propio ícono.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra de Búsqueda y Filtros -->
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col md:flex-row gap-4 justify-between items-center">
+            <div class="relative w-full md:w-96">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="searchInput" oninput="renderOrders()" placeholder="Buscar por Nº orden, cliente, CIF o trabajo..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+            </div>
+            <div class="flex items-center gap-3 w-full md:w-auto justify-end flex-wrap">
+                <label class="text-xs text-slate-400 font-medium">Estado:</label>
+                <select id="statusFilter" onchange="renderOrders()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+                    <option value="ALL">Todos los Estados</option>
+                    <option value="Pendiente">Pendiente</option>
+                    <option value="En Proceso">En Proceso</option>
+                    <option value="Completada">Completada</option>
+                    <option value="Anulada">Anulada</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- SECCIÓN ÓRDENES -->
+        <div id="ordersSection">
+        <!-- Tarjetas de Estadísticas -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-slate-400">Total Órdenes</p>
+                    <p id="statTotal" class="text-2xl font-bold text-white">0</p>
+                </div>
+                <i class="fa-solid fa-folder-open text-2xl text-blue-400"></i>
+            </div>
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-slate-400">Pendientes</p>
+                    <p id="statPending" class="text-2xl font-bold text-amber-400">0</p>
+                </div>
+                <i class="fa-solid fa-clock text-2xl text-amber-400"></i>
+            </div>
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-slate-400">Completadas</p>
+                    <p id="statCompleted" class="text-2xl font-bold text-emerald-400">0</p>
+                </div>
+                <i class="fa-solid fa-check-circle text-2xl text-emerald-400"></i>
+            </div>
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-slate-400">Anuladas</p>
+                    <p id="statCanceled" class="text-2xl font-bold text-rose-400">0</p>
+                </div>
+                <i class="fa-solid fa-ban text-2xl text-rose-400"></i>
+            </div>
+        </div>
+
+        <!-- Lista / Grid de Órdenes -->
+        <div id="ordersGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+            <!-- Las tarjetas se generan dinámicamente -->
+        </div>
+
+        <!-- Estado Vacío -->
+        <div id="emptyState" class="hidden text-center py-12 bg-slate-800/50 border border-slate-700 border-dashed rounded-xl mt-6">
+            <i class="fa-solid fa-box-open text-4xl text-slate-500 mb-3"></i>
+            <h3 class="text-lg font-semibold text-slate-300">No hay órdenes registradas</h3>
+            <p class="text-sm text-slate-400 mb-4">Empieza creando una nueva orden de trabajo con el botón superior.</p>
+            <button onclick="openModal('new', null, 'order')" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-4 py-2 rounded-lg text-sm inline-flex items-center gap-2">
+                <i class="fa-solid fa-plus"></i> Crear Órden
+            </button>
+        </div>
+        </div>
+        <!-- FIN SECCIÓN ÓRDENES -->
+
+        <!-- SECCIÓN PRESUPUESTOS -->
+        <div id="quotesSection" class="hidden">
+        <div class="flex gap-2 mb-4">
+            <button id="quoteTabPendiente" onclick="switchQuoteFilter('Presupuesto')" class="quote-subtab px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition">
+                <i class="fa-solid fa-hourglass-half text-amber-400"></i> Pendientes
+            </button>
+            <button id="quoteTabAceptado" onclick="switchQuoteFilter('Aceptado')" class="quote-subtab px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition">
+                <i class="fa-solid fa-circle-check text-emerald-400"></i> Aceptados
+            </button>
+            <button id="quoteTabRechazado" onclick="switchQuoteFilter('Rechazado')" class="quote-subtab px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition">
+                <i class="fa-solid fa-circle-xmark text-rose-400"></i> Rechazados
+            </button>
+        </div>
+        <div id="quotesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Las tarjetas se generan dinámicamente -->
+        </div>
+
+        <div id="quotesEmptyState" class="hidden text-center py-12 bg-slate-800/50 border border-slate-700 border-dashed rounded-xl">
+            <i class="fa-solid fa-file-pen text-4xl text-slate-500 mb-3"></i>
+            <h3 id="quotesEmptyTitle" class="text-lg font-semibold text-slate-300">No hay presupuestos aquí</h3>
+            <p class="text-sm text-slate-400 mb-4">Crea un presupuesto y, si el cliente lo acepta, se convierte en orden automáticamente.</p>
+            <button onclick="openModal('new', null, 'quote')" class="bg-amber-600 hover:bg-amber-500 text-white font-medium px-4 py-2 rounded-lg text-sm inline-flex items-center gap-2">
+                <i class="fa-solid fa-plus"></i> Crear Presupuesto
+            </button>
+        </div>
+        </div>
+        <!-- FIN SECCIÓN PRESUPUESTOS -->
+
+        <!-- SECCIÓN MÁS URGENTES -->
+        <div id="urgentSection" class="hidden">
+        <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 mb-4 text-sm text-amber-200 flex items-center gap-2">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>Órdenes pendientes con fecha de entrega, ordenadas de la más cercana a la más lejana.</span>
+        </div>
+        <div id="urgentGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Las tarjetas se generan dinámicamente -->
+        </div>
+        <div id="urgentEmptyState" class="hidden text-center py-12 bg-slate-800/50 border border-slate-700 border-dashed rounded-xl">
+            <i class="fa-solid fa-truck-fast text-4xl text-slate-500 mb-3"></i>
+            <h3 class="text-lg font-semibold text-slate-300">No hay órdenes urgentes</h3>
+            <p class="text-sm text-slate-400">Aparecerán aquí las órdenes pendientes que tengan fecha de entrega puesta.</p>
+        </div>
+        </div>
+        <!-- FIN SECCIÓN MÁS URGENTES -->
+
+        <!-- SECCIÓN FACTURAS -->
+        <div id="invoicesSection" class="hidden">
+        <div id="invoicesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Las tarjetas se generan dinámicamente -->
+        </div>
+        <div id="invoicesEmptyState" class="hidden text-center py-12 bg-slate-800/50 border border-slate-700 border-dashed rounded-xl">
+            <i class="fa-solid fa-file-invoice-dollar text-4xl text-slate-500 mb-3"></i>
+            <h3 class="text-lg font-semibold text-slate-300">No hay facturas generadas</h3>
+            <p class="text-sm text-slate-400">Genera una factura desde una orden ya completada, con el botón "Factura" de su tarjeta.</p>
+        </div>
+        </div>
+        <!-- FIN SECCIÓN FACTURAS -->
+
+    </main>
+
+    <!-- Notificación de nueva versión disponible -->
+    <div id="installToast" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-600 text-slate-100 px-4 py-3 rounded-xl shadow-2xl z-50 no-print flex items-center gap-3">
+        <i class="fa-solid fa-rotate text-blue-400"></i>
+        <span class="text-sm">Hay una nueva versión disponible.</span>
+        <button onclick="location.reload()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium px-3 py-1.5 rounded-lg">Actualizar</button>
+    </div>
+
+    <!-- MODAL FORMULARIO -->
+    <div id="orderModal" class="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 hidden no-print overflow-y-auto">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-3xl my-8 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            
+            <div class="px-6 py-4 bg-slate-800/80 border-b border-slate-700 flex justify-between items-center gap-3">
+                <h2 id="modalTitle" class="text-lg font-bold text-white flex items-center gap-2 min-w-0">
+                    <i class="fa-solid fa-file-signature text-blue-400 flex-shrink-0"></i>
+                    <span class="truncate">Nueva Órden de Trabajo</span>
+                </h2>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <button type="button" id="topSaveBtn" onclick="submitFormFromTop()" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-3 py-1.5 rounded-lg items-center gap-1.5">
+                        <i class="fa-solid fa-floppy-disk"></i> <span class="hidden sm:inline">Guardar</span>
+                    </button>
+                    <button onclick="closeModal()" class="text-slate-400 hover:text-white text-xl p-1">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Barra de pasos / pestañas -->
+            <div class="flex items-center gap-1 px-3 sm:px-6 py-2.5 bg-slate-900/60 border-b border-slate-700 overflow-x-auto text-xs sm:text-sm no-print">
+                <button type="button" onclick="goToStep(1)" data-tab="1" class="wizard-tab px-2.5 sm:px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition">1. Cabecera</button>
+                <i class="fa-solid fa-chevron-right text-slate-600 text-[10px]"></i>
+                <button type="button" onclick="goToStep(2)" data-tab="2" class="wizard-tab px-2.5 sm:px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition">2. Detalles</button>
+                <i class="fa-solid fa-chevron-right text-slate-600 text-[10px]"></i>
+                <button type="button" onclick="goToStep(3)" data-tab="3" class="wizard-tab px-2.5 sm:px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition">3. Costes</button>
+                <i class="fa-solid fa-chevron-right text-slate-600 text-[10px]"></i>
+                <button type="button" onclick="goToStep(4)" data-tab="4" class="wizard-tab px-2.5 sm:px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition">4. Resumen</button>
+            </div>
+
+            <form id="orderForm" onsubmit="handleFormSubmit(event)" class="p-6 overflow-y-auto space-y-6 flex-1 text-sm">
+                <input type="hidden" id="orderId">
+
+                <!-- PASO 1: CABECERA -->
+                <div class="wizard-step flex flex-col" data-step="1">
+                <!-- Bloque: Nº Orden/Ref/Estado/Prueba (se oculta para Presupuestos) -->
+                <div id="metaFieldsBlock">
+                <!-- Fila 1: Nº Orden y Ref. Anterior -->
+                <div class="grid grid-cols-2 gap-3 bg-slate-900/50 p-4 rounded-lg border border-slate-700/50">
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1 text-xs sm:text-sm">Nº Orden</label>
+                        <input type="text" id="orderNum" readonly class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-blue-400 font-bold focus:outline-none cursor-not-allowed">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1 text-xs sm:text-sm">Orden Nº Ant / Ref</label>
+                        <input type="text" id="orderRef" placeholder="Orden anterior" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- Fila 2: Estado y Fecha de Prueba -->
+                <div class="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1 text-xs sm:text-sm">Estado</label>
+                        <select id="orderStatus" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none">
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="En Proceso">En Proceso</option>
+                            <option value="Completada">Completada</option>
+                            <option value="Anulada">Anulada (Libera Nº)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1 text-xs sm:text-sm">Fecha de Prueba</label>
+                        <input type="date" id="proofDate" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none">
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-400 -mt-1.5">Si pones fecha de prueba, se entiende que la requiere.</p>
+                </div>
+                <!-- FIN metaFieldsBlock -->
+
+                <!-- Bloque: Fecha de Entrada y Fecha de Entrega -->
+                <div id="datesBlock" class="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1 text-xs sm:text-sm">Fecha de Entrada *</label>
+                        <input type="date" id="orderDate" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1 text-xs sm:text-sm">Fecha de Entrega</label>
+                        <input type="date" id="orderDeliveryDate" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- Método de Entrega -->
+                <div id="deliveryMethodBlock" class="mt-6">
+                    <label class="block text-slate-300 font-medium mb-2">Método de Entrega</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label class="flex items-center gap-3 bg-slate-900 border border-slate-700 rounded-lg p-3 cursor-pointer hover:border-blue-500 transition">
+                            <input type="radio" name="deliveryMethod" value="Recogida en Taller" checked class="form-radio text-blue-600 focus:ring-blue-500 bg-slate-800 border-slate-700">
+                            <span class="text-sm font-semibold text-slate-200 uppercase">Recogida en Taller</span>
+                        </label>
+                        <label class="flex items-center gap-3 bg-slate-900 border border-slate-700 rounded-lg p-3 cursor-pointer hover:border-blue-500 transition">
+                            <input type="radio" name="deliveryMethod" value="Domicilio Cliente" class="form-radio text-blue-600 focus:ring-blue-500 bg-slate-800 border-slate-700">
+                            <span class="text-sm font-semibold text-slate-200 uppercase">Domicilio Cliente</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Datos del Cliente -->
+                <div id="clientDataBlock" class="mt-6">
+                    <h3 class="text-md font-semibold text-blue-400 border-b border-slate-700 pb-2 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-user"></i> Datos del Cliente
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-slate-300 mb-1">Nº Cliente</label>
+                            <input type="text" id="clientNum" placeholder="Ej: CLI-104" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-slate-300 mb-1">Nombre / Razón Social *</label>
+                            <input type="text" id="clientName" placeholder="Nombre del cliente o empresa" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 mb-1">CIF / NIF / DNI</label>
+                            <input type="text" id="clientCif" placeholder="B-12345678" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 mb-1">Teléfono</label>
+                            <input type="tel" id="clientPhone" placeholder="+34 600 000 000" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 mb-1">Correo Electrónico</label>
+                            <input type="email" id="clientEmail" placeholder="cliente@ejemplo.com" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div class="sm:col-span-3">
+                            <label class="block text-slate-300 mb-1">Dirección Completa</label>
+                            <input type="text" id="clientAddress" placeholder="Calle, Número, Ciudad, CP" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+                </div>
+                <!-- FIN PASO 1 -->
+
+                <!-- PASO 2: DETALLES -->
+                <div class="wizard-step hidden" data-step="2">
+                <!-- Especificaciones del Trabajo -->
+                <div>
+                    <h3 class="text-md font-semibold text-blue-400 border-b border-slate-700 pb-2 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-print"></i> Detalles del Trabajo
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        <div class="sm:col-span-2">
+                            <label class="block text-slate-300 mb-1">Título del Trabajo / Proyecto *</label>
+                            <input type="text" id="jobTitle" placeholder="Ej: Catálogos Corporativos" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 mb-1">Cantidad / Unidades *</label>
+                            <input type="number" id="jobQuantity" min="1" placeholder="1000" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 mb-1">Formato / Medidas</label>
+                            <input type="text" id="jobFormat" placeholder="Ej: A4 (210x297 mm)" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 mb-1">Tipo de Papel / Soporte</label>
+                            <input type="text" id="jobPaper" placeholder="Ej: Estucado Mate 130g" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 mb-1">Acabados / Manipulado</label>
+                            <input type="text" id="jobFinishing" placeholder="Plegado, Plastificado..." class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div class="sm:col-span-3">
+                            <label class="block text-slate-300 mb-1">Descripción detallada</label>
+                            <textarea id="jobDescription" rows="4" placeholder="Notas sobre tintas, diseño, indicaciones..." class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Observaciones -->
+                <div class="mt-6">
+                    <label class="block text-slate-300 mb-1">Observaciones / Notas Internas</label>
+                    <textarea id="orderNotes" rows="4" placeholder="Instrucciones de entrega, embalaje..." class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none"></textarea>
+                </div>
+                </div>
+                <!-- FIN PASO 2 -->
+
+                <!-- PASO 3: COSTES -->
+                <div class="wizard-step hidden" data-step="3">
+                <!-- Costes de Producción -->
+                <div>
+                    <h3 class="text-md font-semibold text-emerald-400 border-b border-slate-700 pb-2 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-euro-sign"></i> Costes de Producción
+                    </h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-300 mb-1 text-xs">Fotocomposición (€)</label>
+                            <input type="number" step="0.01" min="0" id="costPhotocomposition" oninput="updateCostTotals()" placeholder="0.00" class="cost-field w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-emerald-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 mb-1 text-xs">Manipulado (€)</label>
+                            <input type="number" step="0.01" min="0" id="costManipulado" oninput="updateCostTotals()" placeholder="0.00" class="cost-field w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-emerald-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Mano de Obra -->
+                    <div class="mt-3 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                        <label class="block text-slate-300 mb-1 text-xs font-semibold">Mano de Obra / Instalación</label>
+                        <div class="flex gap-1.5 items-center">
+                            <input type="number" step="0.5" min="0" id="laborHours" oninput="updateCostTotals()" placeholder="Horas" class="cost-field w-1/3 bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-emerald-500 focus:outline-none">
+                            <span class="text-slate-500 text-xs">×</span>
+                            <input type="number" step="0.01" min="0" id="laborPricePerHour" oninput="updateCostTotals()" placeholder="€/hora" class="cost-field w-1/3 bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-emerald-500 focus:outline-none">
+                            <span class="text-slate-500 text-xs">=</span>
+                            <span id="laborAmount" class="w-1/3 text-right font-semibold text-slate-200 text-sm">0.00 €</span>
+                        </div>
+                    </div>
+
+                    <!-- Desplazamiento -->
+                    <div class="mt-3 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                        <label class="block text-slate-300 mb-1 text-xs font-semibold">Desplazamiento</label>
+                        <div class="flex gap-1.5 items-center">
+                            <input type="number" step="0.1" min="0" id="travelKm" oninput="updateCostTotals()" placeholder="Km" class="cost-field w-1/3 bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-emerald-500 focus:outline-none">
+                            <span class="text-slate-500 text-xs">×</span>
+                            <input type="number" step="0.01" min="0" id="travelPricePerKm" oninput="updateCostTotals()" placeholder="€/km" class="cost-field w-1/3 bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-emerald-500 focus:outline-none">
+                            <span class="text-slate-500 text-xs">=</span>
+                            <span id="travelAmount" class="w-1/3 text-right font-semibold text-slate-200 text-sm">0.00 €</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                        <div>
+                            <label class="block text-slate-300 mb-1 text-xs">Impresiones a color</label>
+                            <div class="flex gap-1.5">
+                                <input type="number" min="0" id="printColorQty" oninput="handleImpresionInput('Color','qty')" placeholder="Cant." class="cost-field w-1/3 bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-emerald-500 focus:outline-none">
+                                <input type="number" step="0.0001" min="0" id="printColorPrice" oninput="handleImpresionInput('Color','price')" placeholder="€/ud" class="cost-field w-1/3 bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-emerald-500 focus:outline-none">
+                                <input type="number" step="0.01" min="0" id="printColorTotal" oninput="handleImpresionInput('Color','total')" placeholder="Total €" class="cost-field w-1/3 bg-slate-900 border border-emerald-700/50 rounded p-2 text-emerald-300 font-semibold focus:border-emerald-500 focus:outline-none">
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-1">Rellena 2 de los 3 campos (cantidad, €/ud o total) y se calcula el que falta.</p>
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 mb-1 text-xs">Impresiones blanco y negro</label>
+                            <div class="flex gap-1.5">
+                                <input type="number" min="0" id="printBWQty" oninput="handleImpresionInput('BW','qty')" placeholder="Cant." class="cost-field w-1/3 bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-emerald-500 focus:outline-none">
+                                <input type="number" step="0.0001" min="0" id="printBWPrice" oninput="handleImpresionInput('BW','price')" placeholder="€/ud" class="cost-field w-1/3 bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-emerald-500 focus:outline-none">
+                                <input type="number" step="0.01" min="0" id="printBWTotal" oninput="handleImpresionInput('BW','total')" placeholder="Total €" class="cost-field w-1/3 bg-slate-900 border border-emerald-700/50 rounded p-2 text-emerald-300 font-semibold focus:border-emerald-500 focus:outline-none">
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-1">Rellena 2 de los 3 campos y se calcula el que falta.</p>
+                        </div>
+                    </div>
+
+                    <!-- Materiales: vinilos (repetibles con marca/color) y laminado, con cálculo por m² -->
+                    <div class="mt-3">
+                        <h4 class="text-slate-300 text-xs font-semibold mb-2">Materiales (Ancho × Largo × Precio/m²)</h4>
+                        <div class="space-y-3">
+                            <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="text-slate-300 text-xs font-semibold">Vinilo Polimérico</label>
+                                    <button type="button" onclick="addVinylRow('vinylPoly')" class="text-emerald-400 hover:text-emerald-300 text-xs font-medium flex items-center gap-1">
+                                        <i class="fa-solid fa-circle-plus"></i> Añadir
+                                    </button>
+                                </div>
+                                <div id="vinylPolyRows" class="space-y-2"></div>
+                                <div class="text-right text-xs text-slate-400 mt-1.5">Total: <span id="vinylPolyTotalAmount" class="text-slate-200 font-semibold">0.00 €</span></div>
+                            </div>
+                            <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="text-slate-300 text-xs font-semibold">Vinilo Monomérico</label>
+                                    <button type="button" onclick="addVinylRow('vinylMono')" class="text-emerald-400 hover:text-emerald-300 text-xs font-medium flex items-center gap-1">
+                                        <i class="fa-solid fa-circle-plus"></i> Añadir
+                                    </button>
+                                </div>
+                                <div id="vinylMonoRows" class="space-y-2"></div>
+                                <div class="text-right text-xs text-slate-400 mt-1.5">Total: <span id="vinylMonoTotalAmount" class="text-slate-200 font-semibold">0.00 €</span></div>
+                            </div>
+                            <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="text-slate-300 text-xs font-semibold">Vinilo de Corte</label>
+                                    <button type="button" onclick="addVinylRow('vinylCut')" class="text-emerald-400 hover:text-emerald-300 text-xs font-medium flex items-center gap-1">
+                                        <i class="fa-solid fa-circle-plus"></i> Añadir
+                                    </button>
+                                </div>
+                                <div id="vinylCutRows" class="space-y-2"></div>
+                                <div class="text-right text-xs text-slate-400 mt-1.5">Total: <span id="vinylCutTotalAmount" class="text-slate-200 font-semibold">0.00 €</span></div>
+                            </div>
+                            <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="text-slate-300 text-xs font-semibold">Vinilo + Laminado</label>
+                                    <button type="button" onclick="addVinylRow('vinylLam')" class="text-emerald-400 hover:text-emerald-300 text-xs font-medium flex items-center gap-1">
+                                        <i class="fa-solid fa-circle-plus"></i> Añadir
+                                    </button>
+                                </div>
+                                <div id="vinylLamRows" class="space-y-2"></div>
+                                <div class="text-right text-xs text-slate-400 mt-1.5">Total: <span id="vinylLamTotalAmount" class="text-slate-200 font-semibold">0.00 €</span></div>
+                            </div>
+                            <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="text-slate-300 text-xs font-semibold">Otros (materiales que quieras añadir)</label>
+                                    <button type="button" onclick="addCustomCostRow()" class="text-emerald-400 hover:text-emerald-300 text-xs font-medium flex items-center gap-1">
+                                        <i class="fa-solid fa-circle-plus"></i> Añadir
+                                    </button>
+                                </div>
+                                <div id="customCostRows" class="space-y-2"></div>
+                                <p id="emptyCustomCost" class="text-[11px] text-slate-500 italic">Ej: Metacrilato, Perfilería... lo que necesites.</p>
+                                <div class="text-right text-xs text-slate-400 mt-1.5">Total: <span id="customCostTotalAmount" class="text-slate-200 font-semibold">0.00 €</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                        <div class="sm:col-span-2">
+                            <label class="block text-slate-300 mb-1 text-xs">Observaciones de coste (materiales externos, montajes, etc.)</label>
+                            <textarea id="otherCostDesc" rows="5" placeholder="Ej: Montado en cartón pluma 5mm, montado en PVC 3mm..." class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-emerald-500 focus:outline-none"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 mb-1 text-xs">Importe (€)</label>
+                            <input type="number" step="0.01" min="0" id="otherCostAmount" oninput="updateCostTotals()" placeholder="0.00" class="cost-field w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-emerald-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 items-end bg-emerald-500/5 border border-emerald-500/20 p-3 rounded-lg">
+                        <div>
+                            <label class="block text-slate-300 mb-1 text-xs">Margen / Beneficio (%)</label>
+                            <input type="number" step="1" min="0" id="marginPercent" oninput="updateCostTotals()" placeholder="0" class="cost-field w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-emerald-500 focus:outline-none">
+                        </div>
+                        <div class="text-sm">
+                            <span class="text-slate-400 block text-xs">Subtotal (costes)</span>
+                            <span id="costSubtotalDisplay" class="text-lg font-bold text-slate-200">0.00 €</span>
+                        </div>
+                        <div class="text-sm">
+                            <span class="text-slate-400 block text-xs">Total con margen</span>
+                            <span id="costTotalDisplay" class="text-xl font-black text-emerald-400">0.00 €</span>
+                        </div>
+                    </div>
+                </div>
+                </div>
+                <!-- FIN PASO 3 -->
+
+                <!-- PASO 4: RESUMEN -->
+                <div class="wizard-step hidden" data-step="4">
+                    <h3 class="text-md font-semibold text-blue-400 border-b border-slate-700 pb-2 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-file-invoice"></i> Ficha de la Órden
+                    </h3>
+                    <div id="wizardSummary" class="bg-slate-900 border border-slate-700 rounded-xl p-5 font-mono text-sm text-slate-200 space-y-1"></div>
+                    <p class="text-xs text-slate-400 mt-3">Revisa los datos y pulsa "Guardar Órden". Podrás imprimir o descargar el PDF desde la tarjeta de la orden una vez guardada.</p>
+                </div>
+                <!-- FIN PASO 4 -->
+
+                <!-- Botones de navegación -->
+                <div class="flex justify-between items-center gap-3 pt-4 border-t border-slate-700">
+                    <button type="button" onclick="closeModal()" class="px-3 py-2 text-slate-400 hover:text-slate-200 text-sm font-medium">Cancelar</button>
+                    <div class="flex items-center gap-2">
+                        <button type="button" id="wizardPrevBtn" onclick="prevStep()" class="hidden px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium items-center gap-2">
+                            <i class="fa-solid fa-arrow-left"></i> <span class="hidden sm:inline">Anterior</span>
+                        </button>
+                        <button type="button" id="wizardNextBtn" onclick="nextStep()" class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium flex items-center gap-2">
+                            <span class="hidden sm:inline">Siguiente</span> <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                        <button type="submit" id="wizardSaveBtn" class="hidden px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium items-center gap-2">
+                            <i class="fa-solid fa-floppy-disk"></i> Guardar Órden
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL DE FOTOS -->
+    <div id="photoModal" class="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 hidden no-print overflow-y-auto">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-2xl my-8 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 bg-slate-800/80 border-b border-slate-700 flex justify-between items-center">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-camera text-emerald-400"></i>
+                    <span>Fotos — <span id="photoModalOrderNum" class="text-blue-400"></span></span>
+                </h2>
+                <button onclick="closePhotoModal()" class="text-slate-400 hover:text-white text-xl p-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-6 flex-1 text-sm">
+                <p class="text-xs text-slate-400 -mt-2">Las fotos se guardan automáticamente en este dispositivo. Se comprimen para ocupar menos espacio.</p>
+
+                <!-- ANTES -->
+                <div>
+                    <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+                        <h3 class="text-md font-semibold text-amber-400 flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left"></i> Antes del trabajo
+                        </h3>
+                        <div class="flex items-center gap-1.5">
+                            <label class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer transition">
+                                <i class="fa-solid fa-camera"></i> Cámara
+                                <input type="file" accept="image/*" capture="environment" multiple class="hidden" onchange="handlePhotoAdd('before', event)">
+                            </label>
+                            <label class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer transition">
+                                <i class="fa-solid fa-images"></i> Galería
+                                <input type="file" accept="image/*" multiple class="hidden" onchange="handlePhotoAdd('before', event)">
+                            </label>
+                        </div>
+                    </div>
+                    <div id="galleryBefore" class="grid grid-cols-3 sm:grid-cols-4 gap-2"></div>
+                    <p id="emptyBefore" class="text-xs text-slate-500 italic hidden">Sin fotos todavía.</p>
+                </div>
+
+                <!-- DESPUÉS -->
+                <div>
+                    <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+                        <h3 class="text-md font-semibold text-emerald-400 flex items-center gap-2">
+                            <i class="fa-solid fa-circle-check"></i> Después del trabajo
+                        </h3>
+                        <div class="flex items-center gap-1.5">
+                            <label class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer transition">
+                                <i class="fa-solid fa-camera"></i> Cámara
+                                <input type="file" accept="image/*" capture="environment" multiple class="hidden" onchange="handlePhotoAdd('after', event)">
+                            </label>
+                            <label class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer transition">
+                                <i class="fa-solid fa-images"></i> Galería
+                                <input type="file" accept="image/*" multiple class="hidden" onchange="handlePhotoAdd('after', event)">
+                            </label>
+                        </div>
+                    </div>
+                    <div id="galleryAfter" class="grid grid-cols-3 sm:grid-cols-4 gap-2"></div>
+                    <p id="emptyAfter" class="text-xs text-slate-500 italic hidden">Sin fotos todavía.</p>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 border-t border-slate-700 flex justify-end">
+                <button onclick="closePhotoModal()" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium text-sm">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE ARCHIVOS (PDFs y otros documentos que manda el cliente) -->
+    <div id="fileModal" class="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 hidden no-print overflow-y-auto">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-lg my-8 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 bg-slate-800/80 border-b border-slate-700 flex justify-between items-center">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-paperclip text-amber-400"></i>
+                    <span>Archivos — <span id="fileModalOrderNum" class="text-blue-400"></span></span>
+                </h2>
+                <button onclick="closeFileModal()" class="text-slate-400 hover:text-white text-xl p-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-3 flex-1 text-sm">
+                <p class="text-xs text-slate-400 -mt-1">PDFs, documentos u otros archivos que te haya pasado el cliente (planos, artes, facturas...). Se guardan en este dispositivo.</p>
+
+                <label class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer transition border-2 border-dashed border-slate-600">
+                    <i class="fa-solid fa-file-arrow-up"></i> Añadir archivo (PDF, imagen, documento...)
+                    <input type="file" multiple class="hidden" onchange="handleFileAdd(event)">
+                </label>
+
+                <div id="fileList" class="space-y-2 mt-2"></div>
+                <p id="emptyFiles" class="text-xs text-slate-500 italic hidden">Sin archivos adjuntos todavía.</p>
+            </div>
+
+            <div class="px-6 py-4 border-t border-slate-700 flex justify-end">
+                <button onclick="closeFileModal()" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium text-sm">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LIGHTBOX (ver foto en grande) -->
+    <div id="lightbox" class="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-[60] hidden no-print" onclick="closeLightbox()">
+        <img id="lightboxImg" src="" class="max-w-full max-h-full rounded-lg shadow-2xl">
+        <button onclick="closeLightbox()" class="absolute top-4 right-4 text-white text-2xl bg-black/50 rounded-full w-10 h-10 flex items-center justify-center">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+
+    <!-- MODAL DE VISTA PREVIA / RESUMEN A4 -->
+    <div id="resumenModal" class="fixed inset-0 bg-black/80 hidden no-print z-40 overflow-y-auto p-2 sm:p-6">
+        <div class="max-w-3xl mx-auto">
+            <div class="flex justify-end gap-2 mb-3 sticky top-2 z-10">
+                <button onclick="closeResumenModal()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg">
+                    <i class="fa-solid fa-xmark"></i> Cerrar
+                </button>
+                <button onclick="downloadPDF(event)" class="bg-rose-600 hover:bg-rose-500 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg">
+                    <i class="fa-solid fa-file-pdf"></i> Descargar PDF
+                </button>
+                <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg">
+                    <i class="fa-solid fa-print"></i> Imprimir
+                </button>
+            </div>
+
+    <!-- VISTA IMPRESIÓN A4 -->
+    <div id="print-area" class="text-slate-900 bg-white p-6 rounded-lg shadow-2xl text-[13px]">
+        <div class="border-b-2 border-slate-900 pb-3 mb-3 flex justify-between items-start">
+            <div>
+                <h1 id="printDocTitle" class="text-2xl font-black uppercase tracking-wider text-slate-900">ÓRDEN DE TRABAJO</h1>
+                <p id="printDocSubtitle" class="text-xs text-slate-600 font-medium">Ficha interna de producción</p>
+            </div>
+            <div class="text-right">
+                <div class="text-2xl font-extrabold text-blue-700 border-2 border-blue-700 px-3 py-1 rounded inline-block" id="printOrderNum">OT-0000</div>
+                <p class="text-xs text-slate-500 mt-1">Fecha: <span id="printDate" class="font-bold text-slate-800">00/00/0000</span></p>
+            </div>
+        </div>
+
+        <div class="mb-3 border border-slate-300 rounded p-2.5 bg-slate-50">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 pb-1 mb-1.5">DATOS DEL CLIENTE</h2>
+            <div class="grid grid-cols-2 gap-y-1 text-xs">
+                <div><span class="font-semibold text-slate-600">Cliente:</span> <span id="printClientName" class="font-bold text-slate-900"></span></div>
+                <div><span class="font-semibold text-slate-600">Nº Cliente:</span> <span id="printClientNum" class="text-slate-800"></span></div>
+                <div><span class="font-semibold text-slate-600">CIF/NIF:</span> <span id="printClientCif" class="text-slate-800"></span></div>
+                <div><span class="font-semibold text-slate-600">Teléfono:</span> <a id="printClientPhone" href="#" class="text-blue-700 font-semibold no-underline"></a></div>
+                <div><span class="font-semibold text-slate-600">Email:</span> <span id="printClientEmail" class="text-slate-800"></span></div>
+                <div><span class="font-semibold text-slate-600">Dirección:</span> <span id="printClientAddress" class="text-slate-800"></span></div>
+            </div>
+        </div>
+
+        <div class="mb-3 border border-slate-300 rounded p-2.5">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 pb-1 mb-2">ESPECIFICACIONES DEL TRABAJO</h2>
+            
+            <div class="mb-2">
+                <span class="text-xs text-slate-500 block uppercase">Proyecto / Trabajo</span>
+                <span id="printJobTitle" class="text-base font-bold text-slate-900 block"></span>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3 mb-2 text-xs bg-slate-100 p-2 rounded">
+                <div>
+                    <span class="text-[10px] text-slate-500 block font-semibold">CANTIDAD</span>
+                    <span id="printJobQuantity" class="text-sm font-black text-blue-800"></span>
+                </div>
+                <div>
+                    <span class="text-[10px] text-slate-500 block font-semibold">FORMATO</span>
+                    <span id="printJobFormat" class="font-medium text-slate-800"></span>
+                </div>
+                <div id="printProofBlock">
+                    <span class="text-[10px] text-slate-500 block font-semibold">PRUEBA REQUERIDA</span>
+                    <span id="printProofRequired" class="inline-block font-bold px-2 py-0.5 rounded text-[10px] mt-0.5"></span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 text-xs mb-1.5">
+                <div>
+                    <span class="text-[10px] text-slate-500 font-semibold block">TIPO DE PAPEL / SOPORTE:</span>
+                    <span id="printJobPaper" class="text-slate-800 font-medium"></span>
+                </div>
+                <div>
+                    <span class="text-[10px] text-slate-500 font-semibold block">ACABADOS / MANIPULADO:</span>
+                    <span id="printJobFinishing" class="text-slate-800 font-medium"></span>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-200 pt-1.5 mt-1.5">
+                <span class="text-[10px] text-slate-500 font-semibold block mb-1">DESCRIPCIÓN Y DETALLES:</span>
+                <p id="printJobDescription" class="text-xs text-slate-800 whitespace-pre-line bg-slate-50 p-1.5 rounded border border-slate-200"></p>
+            </div>
+        </div>
+
+        <div class="border border-slate-300 rounded p-2.5 mb-3">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 pb-1 mb-1.5">OBSERVACIONES / NOTAS</h2>
+            <p id="printOrderNotes" class="text-xs text-slate-700 whitespace-pre-line"></p>
+        </div>
+
+        <div class="mb-3 border border-slate-300 rounded p-2.5">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 pb-1 mb-1.5">DESGLOSE DE COSTES</h2>
+            <div class="grid grid-cols-2 gap-y-1 text-xs mb-1">
+                <div class="flex justify-between pr-4"><span class="text-slate-600">Fotocomposición:</span> <span id="printCostPhoto" class="font-medium text-slate-800">0.00 €</span></div>
+                <div class="flex justify-between pr-4"><span class="text-slate-600">Manipulado:</span> <span id="printCostManip" class="font-medium text-slate-800">0.00 €</span></div>
+                <div class="flex justify-between pr-4"><span class="text-slate-600">Mano de obra:</span> <span id="printCostLabor" class="font-medium text-slate-800">0.00 €</span></div>
+                <div class="flex justify-between pr-4"><span class="text-slate-600">Desplazamiento:</span> <span id="printCostTravel" class="font-medium text-slate-800">0.00 €</span></div>
+                <div class="flex justify-between pr-4"><span class="text-slate-600">Impresiones color:</span> <span id="printCostColor" class="font-medium text-slate-800">0.00 €</span></div>
+                <div class="flex justify-between pr-4"><span class="text-slate-600">Impresiones B/N:</span> <span id="printCostBW" class="font-medium text-slate-800">0.00 €</span></div>
+            </div>
+            <div id="printVinylRows" class="text-[11px] space-y-0.5 mb-1"></div>
+            <div id="printOtherCostRow" class="text-xs border-t border-slate-200 pt-1 mb-1 hidden">
+                <span class="text-slate-600" id="printOtherCostDesc"></span>: <span id="printOtherCostAmount" class="font-medium text-slate-800"></span>
+            </div>
+            <div class="border-t border-slate-300 pt-1.5 flex justify-between items-center">
+                <div class="text-xs text-slate-600">Subtotal: <span id="printCostSubtotal" class="font-semibold text-slate-800">0.00 €</span> &nbsp;|&nbsp; Margen: <span id="printMarginPercent" class="font-semibold text-slate-800">0%</span></div>
+                <div class="text-base font-black text-blue-800">TOTAL: <span id="printCostTotal">0.00 €</span></div>
+            </div>
+            <div id="printIvaBlock" class="border-t border-slate-300 mt-1.5 pt-1.5 hidden">
+                <div class="flex justify-between text-xs text-slate-600 mb-0.5"><span>Base Imponible:</span> <span id="printIvaBase" class="font-medium text-slate-800">0.00 €</span></div>
+                <div class="flex justify-between text-xs text-slate-600 mb-1"><span>IVA (<span id="printIvaPercent">21</span>%):</span> <span id="printIvaAmount" class="font-medium text-slate-800">0.00 €</span></div>
+                <div class="flex justify-between items-center bg-violet-50 border border-violet-200 rounded px-2 py-1.5">
+                    <span class="text-sm font-bold text-violet-900">TOTAL FACTURA</span>
+                    <span id="printIvaGrandTotal" class="text-lg font-black text-violet-800">0.00 €</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t-2 border-dashed border-slate-300 grid grid-cols-3 gap-4 text-center text-[10px] text-slate-500">
+            <div>
+                <div class="h-10 border border-slate-200 rounded mb-1"></div>
+                <span>Firma Operador</span>
+            </div>
+            <div>
+                <div class="h-10 border border-slate-200 rounded mb-1"></div>
+                <span>Control de Calidad</span>
+            </div>
+            <div>
+                <div class="h-10 border border-slate-200 rounded mb-1"></div>
+                <span>Conforme Entrega</span>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+
+    <!-- LOGICA SCRIPT -->
+    <script>
+        const STORAGE_KEY = 'work_orders_app_data';
+        const QUOTES_STORAGE_KEY = 'work_quotes_app_data';
+        const INVOICES_STORAGE_KEY = 'work_invoices_app_data';
+        let orders = [];
+        let quotes = [];
+        let invoices = [];
+        let deferredInstallPrompt = null;
+        let currentView = 'orders';
+        let currentFormType = 'order'; // 'order' | 'quote' — controla dónde se guarda el formulario abierto
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadOrders();
+            loadQuotes();
+            loadInvoices();
+            renderOrders();
+            renderQuotes();
+            renderInvoices();
+            document.getElementById('orderDate').valueAsDate = new Date();
+            setupInstallUI();
+            switchView('orders');
+        });
+
+        // ---- Cambiar entre vista de Órdenes / Urgentes / Presupuestos / Facturas ----
+        function switchView(view) {
+            currentView = view;
+            document.getElementById('ordersSection').classList.toggle('hidden', view !== 'orders');
+            document.getElementById('urgentSection').classList.toggle('hidden', view !== 'urgent');
+            document.getElementById('quotesSection').classList.toggle('hidden', view !== 'quotes');
+            document.getElementById('invoicesSection').classList.toggle('hidden', view !== 'invoices');
+            document.getElementById('tabOrdersBtn').classList.toggle('active', view === 'orders');
+            document.getElementById('tabUrgentBtn').classList.toggle('active', view === 'urgent');
+            document.getElementById('tabQuotesBtn').classList.toggle('active', view === 'quotes');
+            document.getElementById('tabInvoicesBtn').classList.toggle('active', view === 'invoices');
+            if (view === 'urgent') renderUrgent();
+            if (view === 'quotes') switchQuoteFilter(currentQuoteFilter);
+        }
+
+        // ---- Pestaña "Más Urgentes": pendientes con fecha de entrega, de más cercana a más lejana ----
+        function renderUrgent() {
+            const grid = document.getElementById('urgentGrid');
+            const emptyState = document.getElementById('urgentEmptyState');
+            const urgent = orders
+                .filter(o => o.status === 'Pendiente' && o.deliveryDate)
+                .sort((a, b) => new Date(a.deliveryDate) - new Date(b.deliveryDate));
+
+            grid.innerHTML = '';
+            if (urgent.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                urgent.forEach(o => grid.appendChild(createOrderCard(o, true)));
+            }
+        }
+
+        // ---- Registro del Service Worker (offline + instalable) ----
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js').then((reg) => {
+                    reg.addEventListener('updatefound', () => {
+                        const newWorker = reg.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                document.getElementById('installToast').classList.remove('hidden');
+                            }
+                        });
+                    });
+                }).catch((err) => console.warn('No se pudo registrar el service worker:', err));
+            });
+        }
+
+        // ---- Lógica de instalación (Añadir a pantalla de inicio) ----
+        function setupInstallUI() {
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+            const banner = document.getElementById('installBanner');
+            const btn = document.getElementById('installBtn');
+
+            if (isStandalone) {
+                banner.classList.add('hidden');
+                return;
+            }
+
+            const isIOS = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+            if (isIOS) {
+                document.getElementById('installInstructions').innerText =
+                    'En Safari, toca el botón Compartir y luego "Añadir a pantalla de inicio".';
+            }
+
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredInstallPrompt = e;
+                btn.classList.remove('hidden');
+                btn.classList.add('flex');
+            });
+
+            window.addEventListener('appinstalled', () => {
+                btn.classList.add('hidden');
+                banner.classList.add('hidden');
+                deferredInstallPrompt = null;
+            });
+        }
+
+        function installApp() {
+            if (!deferredInstallPrompt) return;
+            deferredInstallPrompt.prompt();
+            deferredInstallPrompt.userChoice.finally(() => {
+                deferredInstallPrompt = null;
+                document.getElementById('installBtn').classList.add('hidden');
+            });
+        }
+
+        // Calcula los valores de coste a partir de una orden ya guardada (para tarjetas y resumen A4/PDF)
+        function materialAmountFromOrder(order, prefix) {
+            const w = parseFloat(order[prefix + 'Width']) || 0;
+            const l = parseFloat(order[prefix + 'Length']) || 0;
+            const p = parseFloat(order[prefix + 'Price']) || 0;
+            return w * l * p;
+        }
+
+        function getCostValuesFromOrder(order) {
+            return {
+                costPhotocomposition: parseFloat(order.costPhotocomposition) || 0,
+                costManipulado: parseFloat(order.costManipulado) || 0,
+                laborHours: parseFloat(order.laborHours) || 0,
+                laborPricePerHour: parseFloat(order.laborPricePerHour) || 0,
+                travelKm: parseFloat(order.travelKm) || 0,
+                travelPricePerKm: parseFloat(order.travelPricePerKm) || 0,
+                printColorQty: parseFloat(order.printColorQty) || 0,
+                printColorPrice: parseFloat(order.printColorPrice) || 0,
+                printBWQty: parseFloat(order.printBWQty) || 0,
+                printBWPrice: parseFloat(order.printBWPrice) || 0,
+                vinylPolyAmount: sumVinylRows(order.vinylPolyRows),
+                vinylMonoAmount: sumVinylRows(order.vinylMonoRows),
+                vinylCutAmount: sumVinylRows(order.vinylCutRows),
+                laminadoAmount: sumVinylRows(order.vinylLamRows),
+                customCostAmount: sumCustomCostRows(order.customCostRows),
+                otherCostAmount: parseFloat(order.otherCostAmount) || 0,
+                marginPercent: parseFloat(order.marginPercent) || 0
+            };
+        }
+
+        function loadOrders() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if (data) {
+                try {
+                    orders = JSON.parse(data);
+                } catch(e) {
+                    orders = [];
+                }
+            } else {
+                orders = [];
+            }
+        }
+
+        function saveOrders() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+            renderOrders();
+        }
+
+        function loadQuotes() {
+            const data = localStorage.getItem(QUOTES_STORAGE_KEY);
+            if (data) {
+                try {
+                    quotes = JSON.parse(data);
+                } catch(e) {
+                    quotes = [];
+                }
+            } else {
+                quotes = [];
+            }
+        }
+
+        function saveQuotes() {
+            localStorage.setItem(QUOTES_STORAGE_KEY, JSON.stringify(quotes));
+            renderQuotes();
+        }
+
+        function loadInvoices() {
+            const data = localStorage.getItem(INVOICES_STORAGE_KEY);
+            if (data) {
+                try {
+                    invoices = JSON.parse(data);
+                } catch(e) {
+                    invoices = [];
+                }
+            } else {
+                invoices = [];
+            }
+        }
+
+        function saveInvoices() {
+            localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
+            renderInvoices();
+        }
+
+        // ---- Tarjetas y render de Facturas ----
+        function renderInvoices() {
+            const grid = document.getElementById('invoicesGrid');
+            const emptyState = document.getElementById('invoicesEmptyState');
+            if (!grid) return;
+
+            grid.innerHTML = '';
+            const sorted = [...invoices].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            if (sorted.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                sorted.forEach(inv => grid.appendChild(createInvoiceCard(inv)));
+            }
+        }
+
+        function createInvoiceCard(invoice) {
+            const card = document.createElement('div');
+            card.className = "bg-slate-800 border border-violet-700/40 rounded-xl p-5 hover:border-violet-500 transition shadow-lg flex flex-col justify-between";
+
+            const base = calculateCosts(getCostValuesFromOrder(invoice)).total;
+            const ivaPercent = parseFloat(invoice.ivaPercent) || 0;
+            const grandTotal = base * (1 + ivaPercent / 100);
+
+            card.innerHTML = `
+                <div>
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="text-lg font-bold text-violet-400 font-mono tracking-wide">${invoice.orderNum}</span>
+                        <span class="text-xs px-2.5 py-1 rounded-full font-semibold border bg-violet-500/10 text-violet-300 border-violet-500/30">Factura</span>
+                    </div>
+                    <h3 class="text-base font-bold text-white mb-1 line-clamp-1">${escapeHtml(invoice.jobTitle)}</h3>
+                    <p class="text-sm font-medium text-slate-300 mb-3 flex items-center gap-1.5">
+                        <i class="fa-solid fa-user text-xs text-slate-400"></i> ${escapeHtml(invoice.clientName)}
+                    </p>
+                    <div class="grid grid-cols-2 gap-2 text-xs text-slate-400 bg-slate-900/60 p-3 rounded-lg mb-4">
+                        <div><span class="text-slate-500 block">Fecha:</span> <span class="text-slate-300">${formatDate(invoice.date)}</span></div>
+                        <div><span class="text-slate-500 block">IVA:</span> <span class="text-slate-300">${ivaPercent}%</span></div>
+                        <div class="col-span-2 border-t border-slate-700/60 pt-2 mt-1 flex justify-between items-center"><span class="text-slate-500">Total con IVA:</span> <strong class="text-emerald-400 text-sm">${grandTotal.toFixed(2)} €</strong></div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between pt-3 border-t border-slate-700/80 gap-2">
+                    <button onclick="printOrder('${invoice.id}', 'invoices')" title="Ver / Imprimir Factura" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs font-medium flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-print text-blue-400"></i> Ver A4
+                    </button>
+                    <button onclick="deleteInvoice('${invoice.id}')" title="Eliminar" class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-700 rounded transition">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            `;
+            return card;
+        }
+
+        function deleteInvoice(id) {
+            if (confirm('¿Estás seguro de que deseas eliminar esta factura?')) {
+                invoices = invoices.filter(i => i.id !== id);
+                saveInvoices();
+            }
+        }
+
+        // Genera una factura a partir de una orden ya existente, pidiendo el % de IVA
+        function generateInvoice(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+
+            if (order.invoiced) {
+                alert('Esta orden ya tiene una factura generada (' + (order.invoiceNum || '') + '). No se puede facturar dos veces la misma orden.');
+                return;
+            }
+
+            const ivaInput = prompt('¿Qué porcentaje de IVA quieres aplicar a esta factura?', '21');
+            if (ivaInput === null) return; // cancelado
+            const ivaPercent = parseFloat(ivaInput.replace(',', '.')) || 0;
+
+            const nextNum = getNextNumber(invoices, 'FAC');
+            const invoiceData = JSON.parse(JSON.stringify(order)); // copia profunda de todos sus datos y costes
+            invoiceData.id = 'inv_' + Date.now();
+            invoiceData.orderNum = formatNumber(nextNum, 'FAC');
+            invoiceData.date = new Date().toISOString().slice(0, 10);
+            invoiceData.ivaPercent = ivaPercent;
+            invoiceData.sourceOrderNum = order.orderNum;
+
+            invoices.push(invoiceData);
+            saveInvoices();
+
+            order.invoiced = true;
+            order.invoiceNum = invoiceData.orderNum;
+            saveOrders();
+
+            switchView('invoices');
+            printOrder(invoiceData.id, 'invoices');
+        }
+
+        // Exportar Copia de Seguridad
+        // Exportar Copia de Seguridad (incluye Órdenes, Presupuestos y Facturas)
+        function exportData() {
+            if (orders.length === 0 && quotes.length === 0 && invoices.length === 0) {
+                alert("No hay datos para exportar todavía.");
+                return;
+            }
+            const backup = { orders, quotes, invoices, exportedAt: new Date().toISOString() };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `copia_ordenes_trabajo_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        // Importar Copia de Seguridad (admite el formato nuevo con todo, y el antiguo solo-órdenes)
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+
+                    if (Array.isArray(imported)) {
+                        // Formato antiguo: un array de órdenes solamente
+                        orders = imported;
+                        saveOrders();
+                        alert("¡Copia de seguridad restaurada con éxito! (formato antiguo, solo Órdenes)");
+                    } else if (imported && typeof imported === 'object' && (Array.isArray(imported.orders) || Array.isArray(imported.quotes) || Array.isArray(imported.invoices))) {
+                        orders = Array.isArray(imported.orders) ? imported.orders : [];
+                        quotes = Array.isArray(imported.quotes) ? imported.quotes : [];
+                        invoices = Array.isArray(imported.invoices) ? imported.invoices : [];
+                        saveOrders();
+                        saveQuotes();
+                        saveInvoices();
+                        alert("¡Copia de seguridad restaurada con éxito! (Órdenes, Presupuestos y Facturas)");
+                    } else {
+                        alert("El archivo seleccionado no tiene el formato correcto.");
+                    }
+                } catch(err) {
+                    alert("Error al leer el archivo de respaldo.");
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function getNextNumber(list, prefix) {
+            const activeNumbers = list
+                .filter(o => o.status !== 'Anulada')
+                .map(o => parseInt((o.orderNum || '').replace(prefix + '-', ''), 10))
+                .filter(n => !isNaN(n))
+                .sort((a, b) => a - b);
+
+            if (activeNumbers.length === 0) return 1;
+
+            let next = 1;
+            for (let i = 0; i < activeNumbers.length; i++) {
+                if (activeNumbers[i] === next) {
+                    next++;
+                } else if (activeNumbers[i] > next) {
+                    break;
+                }
+            }
+
+            return next;
+        }
+
+        function formatNumber(num, prefix) {
+            return prefix + '-' + String(num).padStart(4, '0');
+        }
+
+        function renderOrders() {
+            const grid = document.getElementById('ordersGrid');
+            const emptyState = document.getElementById('emptyState');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            document.getElementById('statTotal').innerText = orders.length;
+            document.getElementById('statPending').innerText = orders.filter(o => o.status === 'Pendiente').length;
+            document.getElementById('statCompleted').innerText = orders.filter(o => o.status === 'Completada').length;
+            document.getElementById('statCanceled').innerText = orders.filter(o => o.status === 'Anulada').length;
+
+            let filtered = orders.filter(o => {
+                const matchesSearch = 
+                    o.orderNum.toLowerCase().includes(search) ||
+                    o.clientName.toLowerCase().includes(search) ||
+                    (o.clientCif && o.clientCif.toLowerCase().includes(search)) ||
+                    o.jobTitle.toLowerCase().includes(search);
+                
+                const matchesStatus = statusFilter === 'ALL' || o.status === statusFilter;
+
+                return matchesSearch && matchesStatus;
+            });
+
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            grid.innerHTML = '';
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                filtered.forEach(o => {
+                    grid.appendChild(createOrderCard(o));
+                });
+            }
+        }
+
+        function createOrderCard(order, isUrgentView = false) {
+            const card = document.createElement('div');
+            card.className = "bg-slate-800 border border-slate-700 rounded-xl p-5 hover:border-slate-600 transition shadow-lg flex flex-col justify-between";
+
+            const photoCount = (order.photosBefore ? order.photosBefore.length : 0) + (order.photosAfter ? order.photosAfter.length : 0);
+            const fileCount = order.attachedFiles ? order.attachedFiles.length : 0;
+
+            const orderTotal = calculateCosts(getCostValuesFromOrder(order)).total;
+
+            let badgeColor = "bg-amber-500/10 text-amber-400 border-amber-500/30";
+            if (order.status === 'En Proceso') badgeColor = "bg-blue-500/10 text-blue-400 border-blue-500/30";
+            if (order.status === 'Completada') badgeColor = "bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
+            if (order.status === 'Anulada') badgeColor = "bg-rose-500/10 text-rose-400 border-rose-500/30";
+
+            card.innerHTML = `
+                <div>
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="text-lg font-bold text-blue-400 font-mono tracking-wide">${order.orderNum}</span>
+                        <span class="text-xs px-2.5 py-1 rounded-full font-semibold border ${badgeColor}">
+                            ${order.status}
+                        </span>
+                    </div>
+
+                    <h3 class="text-base font-bold text-white mb-1 line-clamp-1">${escapeHtml(order.jobTitle)}</h3>
+                    <p class="text-sm font-extrabold text-emerald-400 mb-3 flex items-center gap-1.5 justify-between">
+                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-user text-xs text-emerald-500"></i> ${escapeHtml(order.clientName)}</span>
+                        ${order.clientPhone ? `<a href="tel:${order.clientPhone.replace(/[^0-9+]/g, '')}" title="Llamar a ${escapeHtml(order.clientPhone)}" onclick="event.stopPropagation()" class="text-emerald-500 hover:text-emerald-300 bg-emerald-500/10 rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-phone text-xs"></i></a>` : ''}
+                    </p>
+
+                    <div class="grid grid-cols-2 gap-2 text-xs text-slate-400 bg-slate-900/60 p-3 rounded-lg mb-4">
+                        <div><span class="text-slate-500 block">Cantidad:</span> <strong class="text-slate-200">${order.jobQuantity} ud.</strong></div>
+                        <div><span class="text-slate-500 block">Prueba:</span> <strong class="${order.proofRequired === 'Sí' ? 'text-amber-400' : 'text-slate-300'}">${order.proofRequired}</strong></div>
+                        <div><span class="text-slate-500 block">Entrada:</span> <span class="text-slate-300">${formatDate(order.date)}</span></div>
+                        <div><span class="text-slate-500 block">Entrega:</span> <span class="${isUrgentView ? 'text-amber-400 font-bold' : 'text-slate-300'}">${order.deliveryDate ? formatDate(order.deliveryDate) : '-'}</span></div>
+                        ${orderTotal > 0 ? `<div class="col-span-2 border-t border-slate-700/60 pt-2 mt-1 flex justify-between items-center"><span class="text-slate-500">Total:</span> <strong class="text-emerald-400 text-sm">${orderTotal.toFixed(2)} €</strong></div>` : ''}
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-1 sm:gap-2 pt-3 border-t border-slate-700/80">
+                    <div class="flex items-center gap-1 sm:gap-2">
+                        <button onclick="printOrder('${order.id}', 'orders')" title="Imprimir en A4" class="px-2 sm:px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs font-medium flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-print text-blue-400"></i> <span class="hidden sm:inline">A4</span>
+                        </button>
+                        <button onclick="openPhotoModal('${order.id}', 'orders')" title="Fotos del trabajo" class="relative px-2 sm:px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs font-medium flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-camera text-emerald-400"></i> <span class="hidden sm:inline">Fotos</span>
+                            ${photoCount > 0 ? `<span class="absolute -top-1.5 -right-1.5 bg-emerald-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${photoCount}</span>` : ''}
+                        </button>
+                        <button onclick="openFileModal('${order.id}', 'orders')" title="Archivos adjuntos (PDFs, documentos...)" class="relative px-2 sm:px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs font-medium flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-paperclip text-amber-400"></i> <span class="hidden sm:inline">Archivos</span>
+                            ${fileCount > 0 ? `<span class="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${fileCount}</span>` : ''}
+                        </button>
+                        ${order.invoiced
+                            ? `<span title="Ya facturada: ${escapeHtml(order.invoiceNum || '')}" class="px-2 sm:px-3 py-1.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 rounded text-xs font-bold flex items-center gap-1.5">
+                                <i class="fa-solid fa-circle-check"></i> <span class="hidden sm:inline">Facturada</span>
+                               </span>`
+                            : `<button onclick="generateInvoice('${order.id}')" title="Generar Factura" class="px-2 sm:px-3 py-1.5 bg-violet-700 hover:bg-violet-600 text-white rounded text-xs font-medium flex items-center gap-1.5 transition">
+                                <i class="fa-solid fa-file-invoice-dollar"></i> <span class="hidden sm:inline">Factura</span>
+                               </button>`}
+                    </div>
+                    <div class="flex-1"></div>
+                    <div class="flex items-center gap-1 flex-shrink-0">
+                        <button onclick="duplicateOrder('${order.id}')" title="Duplicar Orden" class="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-700 rounded transition">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                        <button onclick="openModal('edit', '${order.id}', 'order')" title="Editar" class="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded transition">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button onclick="deleteOrder('${order.id}')" title="Eliminar" class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-700 rounded transition">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        // ---- Tarjetas y render de Presupuestos ----
+        let currentQuoteFilter = 'Presupuesto';
+
+        function switchQuoteFilter(status) {
+            currentQuoteFilter = status;
+            document.getElementById('quoteTabPendiente').classList.toggle('active', status === 'Presupuesto');
+            document.getElementById('quoteTabAceptado').classList.toggle('active', status === 'Aceptado');
+            document.getElementById('quoteTabRechazado').classList.toggle('active', status === 'Rechazado');
+            renderQuotes();
+        }
+
+        function renderQuotes() {
+            const grid = document.getElementById('quotesGrid');
+            const emptyState = document.getElementById('quotesEmptyState');
+            const emptyTitle = document.getElementById('quotesEmptyTitle');
+
+            grid.innerHTML = '';
+            const filtered = quotes
+                .filter(q => q.status === currentQuoteFilter)
+                .sort((a, b) => new Date(a.date) - new Date(b.date)); // orden de llegada: más antiguo primero
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+                const labels = { 'Presupuesto': 'pendientes', 'Aceptado': 'aceptados', 'Rechazado': 'rechazados' };
+                emptyTitle.innerText = `No hay presupuestos ${labels[currentQuoteFilter] || ''}`;
+            } else {
+                emptyState.classList.add('hidden');
+                filtered.forEach(q => grid.appendChild(createQuoteCard(q)));
+            }
+        }
+
+        function createQuoteCard(quote) {
+            const card = document.createElement('div');
+            card.className = "bg-slate-800 border border-amber-700/40 rounded-xl p-5 hover:border-amber-500 transition shadow-lg flex flex-col justify-between";
+
+            const quoteTotal = calculateCosts(getCostValuesFromOrder(quote)).total;
+            const quotePhotoCount = (quote.photosBefore ? quote.photosBefore.length : 0) + (quote.photosAfter ? quote.photosAfter.length : 0);
+            const quoteFileCount = quote.attachedFiles ? quote.attachedFiles.length : 0;
+
+            let statusBadge = 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+            let statusLabel = 'Pendiente';
+            if (quote.status === 'Aceptado') { statusBadge = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'; statusLabel = 'Aceptado'; }
+            if (quote.status === 'Rechazado') { statusBadge = 'bg-rose-500/10 text-rose-400 border-rose-500/30'; statusLabel = 'Rechazado'; }
+
+            card.innerHTML = `
+                <div>
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="text-lg font-bold text-amber-400 font-mono tracking-wide">${quote.orderNum}</span>
+                        <span class="text-xs px-2.5 py-1 rounded-full font-semibold border ${statusBadge}">${statusLabel}</span>
+                    </div>
+
+                    <h3 class="text-base font-bold text-white mb-1 line-clamp-1">${escapeHtml(quote.jobTitle)}</h3>
+                    <p class="text-sm font-extrabold text-emerald-400 mb-3 flex items-center gap-1.5 justify-between">
+                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-user text-xs text-emerald-500"></i> ${escapeHtml(quote.clientName)}</span>
+                        ${quote.clientPhone ? `<a href="tel:${quote.clientPhone.replace(/[^0-9+]/g, '')}" title="Llamar a ${escapeHtml(quote.clientPhone)}" onclick="event.stopPropagation()" class="text-emerald-500 hover:text-emerald-300 bg-emerald-500/10 rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-phone text-xs"></i></a>` : ''}
+                    </p>
+
+                    <div class="grid grid-cols-2 gap-2 text-xs text-slate-400 bg-slate-900/60 p-3 rounded-lg mb-4">
+                        <div><span class="text-slate-500 block">Cantidad:</span> <strong class="text-slate-200">${quote.jobQuantity} ud.</strong></div>
+                        <div><span class="text-slate-500 block">Fecha:</span> <span class="text-slate-300">${formatDate(quote.date)}</span></div>
+                        <div class="col-span-2 border-t border-slate-700/60 pt-2 mt-1 flex justify-between items-center"><span class="text-slate-500">Total:</span> <strong class="text-emerald-400 text-sm">${quoteTotal.toFixed(2)} €</strong></div>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-700/80 space-y-2">
+                    <div class="flex items-center gap-1 sm:gap-2">
+                        <button onclick="printOrder('${quote.id}', 'quotes')" title="Imprimir en A4" class="px-2 sm:px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs font-medium flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-print text-blue-400"></i> <span class="hidden sm:inline">A4</span>
+                        </button>
+                        <button onclick="openPhotoModal('${quote.id}', 'quotes')" title="Fotos del presupuesto" class="relative px-2 sm:px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs font-medium flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-camera text-emerald-400"></i> <span class="hidden sm:inline">Fotos</span>
+                            ${quotePhotoCount > 0 ? `<span class="absolute -top-1.5 -right-1.5 bg-emerald-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${quotePhotoCount}</span>` : ''}
+                        </button>
+                        <button onclick="openFileModal('${quote.id}', 'quotes')" title="Archivos adjuntos" class="relative px-2 sm:px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs font-medium flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-paperclip text-amber-400"></i> <span class="hidden sm:inline">Archivos</span>
+                            ${quoteFileCount > 0 ? `<span class="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${quoteFileCount}</span>` : ''}
+                        </button>
+                        <div class="flex-1"></div>
+                        <button onclick="duplicateQuote('${quote.id}')" title="Duplicar Presupuesto" class="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-700 rounded transition flex-shrink-0">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                        <button onclick="openModal('edit', '${quote.id}', 'quote')" title="Editar" class="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded transition flex-shrink-0">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button onclick="deleteQuote('${quote.id}')" title="Eliminar" class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-700 rounded transition flex-shrink-0">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                    ${quote.status === 'Presupuesto' ? `
+                    <div class="flex items-center gap-2">
+                        <button onclick="acceptQuote('${quote.id}')" class="flex-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+                            <i class="fa-solid fa-check"></i> Aceptar (crea Orden)
+                        </button>
+                        <button onclick="rejectQuote('${quote.id}')" class="flex-1 px-3 py-1.5 bg-slate-700 hover:bg-rose-700 text-slate-200 hover:text-white rounded text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+                            <i class="fa-solid fa-xmark"></i> Rechazar
+                        </button>
+                    </div>` : ''}
+                </div>
+            `;
+            return card;
+        }
+
+        function deleteQuote(id) {
+            if (confirm('¿Estás seguro de que deseas eliminar este presupuesto?')) {
+                quotes = quotes.filter(q => q.id !== id);
+                saveQuotes();
+            }
+        }
+
+        // Acepta un presupuesto: lo marca como Aceptado y crea automáticamente la orden de trabajo
+        function acceptQuote(quoteId) {
+            const quote = quotes.find(q => q.id === quoteId);
+            if (!quote) return;
+            if (!confirm(`¿Aceptar el presupuesto ${quote.orderNum}? Se creará automáticamente una nueva orden de trabajo con estos datos.`)) return;
+
+            const nextNum = getNextNumber(orders, 'OT');
+            const newOrder = { ...quote };
+            newOrder.id = 'ord_' + Date.now();
+            newOrder.orderNum = formatNumber(nextNum, 'OT');
+            newOrder.status = 'Pendiente';
+            newOrder.date = new Date().toISOString().slice(0, 10);
+            newOrder.photosBefore = [...(quote.photosBefore || [])];
+            newOrder.photosAfter = [...(quote.photosAfter || [])];
+            newOrder.attachedFiles = [...(quote.attachedFiles || [])];
+            newOrder.invoiced = false;
+            newOrder.invoiceNum = '';
+
+            orders.push(newOrder);
+            saveOrders();
+
+            quote.status = 'Aceptado';
+            saveQuotes();
+
+            switchView('orders');
+            alert(`Presupuesto aceptado. Se ha creado la orden ${newOrder.orderNum}.`);
+        }
+
+        // Rechaza un presupuesto (no se crea ninguna orden)
+        function rejectQuote(quoteId) {
+            const quote = quotes.find(q => q.id === quoteId);
+            if (!quote) return;
+            if (!confirm(`¿Marcar el presupuesto ${quote.orderNum} como rechazado?`)) return;
+
+            quote.status = 'Rechazado';
+            saveQuotes();
+        }
+
+        // Ajusta qué bloques se ven y en qué orden, según sea Orden o Presupuesto
+        function updateFormLayoutForType(formType) {
+            const isQuote = formType === 'quote';
+            document.getElementById('metaFieldsBlock').classList.toggle('hidden', isQuote);
+            document.getElementById('clientDataBlock').style.order = isQuote ? '1' : '2';
+            document.getElementById('datesBlock').style.order = isQuote ? '2' : '3';
+            document.getElementById('deliveryMethodBlock').style.order = isQuote ? '3' : '4';
+        }
+
+        function openModal(mode, orderId = null, formType = 'order') {
+            const modal = document.getElementById('orderModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const form = document.getElementById('orderForm');
+
+            form.reset();
+            document.getElementById('orderDate').valueAsDate = new Date();
+            goToStep(1);
+            currentFormType = formType;
+            updateFormLayoutForType(formType);
+
+            const topSaveBtn = document.getElementById('topSaveBtn');
+            topSaveBtn.classList.toggle('hidden', mode !== 'edit');
+            topSaveBtn.classList.toggle('flex', mode === 'edit');
+
+            if (mode === 'new') {
+                if (formType === 'quote') {
+                    modalTitle.innerHTML = `<i class="fa-solid fa-file-pen text-amber-400"></i><span>Nuevo Presupuesto</span>`;
+                    const nextNum = getNextNumber(quotes, 'PRE');
+                    document.getElementById('orderNum').value = formatNumber(nextNum, 'PRE');
+                } else {
+                    modalTitle.innerHTML = `<i class="fa-solid fa-file-circle-plus text-blue-400"></i><span>Nueva Órden de Trabajo</span>`;
+                    const nextNum = getNextNumber(orders, 'OT');
+                    document.getElementById('orderNum').value = formatNumber(nextNum, 'OT');
+                }
+                document.getElementById('orderId').value = '';
+                document.getElementById('orderStatus').value = 'Pendiente';
+                resetVinylRows();
+                updateCostTotals();
+            } else if (mode === 'edit') {
+                const sourceList = formType === 'quote' ? quotes : orders;
+                modalTitle.innerHTML = formType === 'quote'
+                    ? `<i class="fa-solid fa-pen-to-square text-amber-400"></i><span>Editar Presupuesto</span>`
+                    : `<i class="fa-solid fa-pen-to-square text-blue-400"></i><span>Editar Órden de Trabajo</span>`;
+                const order = sourceList.find(o => o.id === orderId);
+                if (order) {
+                    document.getElementById('orderId').value = order.id;
+                    document.getElementById('orderNum').value = order.orderNum;
+                    document.getElementById('orderRef').value = order.orderRef || '';
+                    document.getElementById('orderDate').value = order.date;
+                    document.getElementById('orderDeliveryDate').value = order.deliveryDate || '';
+                    document.getElementById('orderStatus').value = order.status;
+                    document.getElementById('clientNum').value = order.clientNum || '';
+                    document.getElementById('clientName').value = order.clientName || '';
+                    document.getElementById('clientCif').value = order.clientCif || '';
+                    document.getElementById('clientPhone').value = order.clientPhone || '';
+                    document.getElementById('clientEmail').value = order.clientEmail || '';
+                    document.getElementById('clientAddress').value = order.clientAddress || '';
+                    document.getElementById('jobTitle').value = order.jobTitle || '';
+                    document.getElementById('jobQuantity').value = order.jobQuantity || '';
+                    document.getElementById('jobFormat').value = order.jobFormat || '';
+                    document.getElementById('jobPaper').value = order.jobPaper || '';
+                    document.getElementById('jobFinishing').value = order.jobFinishing || '';
+                    document.getElementById('jobDescription').value = order.jobDescription || '';
+                    document.getElementById('orderNotes').value = order.orderNotes || '';
+                    document.getElementById('proofDate').value = order.proofDate || '';
+
+                    const deliveryRadios = document.getElementsByName('deliveryMethod');
+                    for (let r of deliveryRadios) {
+                        r.checked = (r.value === (order.deliveryMethod || 'Recogida en Taller'));
+                    }
+
+                    document.getElementById('costPhotocomposition').value = order.costPhotocomposition || '';
+                    document.getElementById('costManipulado').value = order.costManipulado || '';
+                    document.getElementById('laborHours').value = order.laborHours || '';
+                    document.getElementById('laborPricePerHour').value = order.laborPricePerHour || '';
+                    document.getElementById('travelKm').value = order.travelKm || '';
+                    document.getElementById('travelPricePerKm').value = order.travelPricePerKm || '';
+                    document.getElementById('printColorQty').value = order.printColorQty || '';
+                    document.getElementById('printColorPrice').value = order.printColorPrice || '';
+                    document.getElementById('printBWQty').value = order.printBWQty || '';
+                    document.getElementById('printBWPrice').value = order.printBWPrice || '';
+                    updateImpresionesDisplay('Color');
+                    updateImpresionesDisplay('BW');
+                    resetVinylRows();
+                    (order.vinylPolyRows || []).forEach(row => addVinylRow('vinylPoly', row));
+                    (order.vinylMonoRows || []).forEach(row => addVinylRow('vinylMono', row));
+                    (order.vinylCutRows || []).forEach(row => addVinylRow('vinylCut', row));
+                    (order.vinylLamRows || []).forEach(row => addVinylRow('vinylLam', row));
+                    (order.customCostRows || []).forEach(row => addCustomCostRow(row));
+                    document.getElementById('otherCostDesc').value = order.otherCostDesc || '';
+                    document.getElementById('otherCostAmount').value = order.otherCostAmount || '';
+                    document.getElementById('marginPercent').value = order.marginPercent || '';
+                }
+                updateCostTotals();
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        // ---- Navegación del asistente de creación de órdenes (4 pasos) ----
+        let currentWizardStep = 1;
+
+        function goToStep(n) {
+            currentWizardStep = n;
+
+            document.querySelectorAll('.wizard-step').forEach(el => {
+                el.classList.toggle('hidden', parseInt(el.dataset.step) !== n);
+            });
+
+            document.querySelectorAll('.wizard-tab').forEach(tab => {
+                tab.classList.toggle('active', parseInt(tab.dataset.tab) === n);
+            });
+
+            const prevBtn = document.getElementById('wizardPrevBtn');
+            const nextBtn = document.getElementById('wizardNextBtn');
+            const saveBtn = document.getElementById('wizardSaveBtn');
+
+            prevBtn.classList.toggle('hidden', n === 1);
+            if (n === 1) prevBtn.classList.remove('flex'); else prevBtn.classList.add('flex');
+
+            if (n === 4) {
+                nextBtn.classList.add('hidden');
+                saveBtn.classList.remove('hidden');
+                saveBtn.classList.add('flex');
+                renderWizardSummary();
+            } else {
+                nextBtn.classList.remove('hidden');
+                saveBtn.classList.add('hidden');
+            }
+
+            // Sube el scroll del formulario al cambiar de paso
+            const formEl = document.getElementById('orderForm');
+            if (formEl) formEl.scrollTop = 0;
+        }
+
+        function nextStep() {
+            if (currentWizardStep === 1 && !document.getElementById('clientName').value.trim()) {
+                alert('Indica el nombre o razón social del cliente para continuar.');
+                document.getElementById('clientName').focus();
+                return;
+            }
+            if (currentWizardStep === 2) {
+                if (!document.getElementById('jobTitle').value.trim()) {
+                    alert('Indica el título del trabajo para continuar.');
+                    document.getElementById('jobTitle').focus();
+                    return;
+                }
+                if (!document.getElementById('jobQuantity').value) {
+                    alert('Indica la cantidad/unidades para continuar.');
+                    document.getElementById('jobQuantity').focus();
+                    return;
+                }
+            }
+            if (currentWizardStep < 4) goToStep(currentWizardStep + 1);
+        }
+
+        function prevStep() {
+            if (currentWizardStep > 1) goToStep(currentWizardStep - 1);
+        }
+
+        // Genera la ficha-resumen en vivo que se ve en el paso 4
+        function renderWizardSummary() {
+            const val = (id) => document.getElementById(id).value;
+            const c = getCostValues();
+            const { subtotal, total } = calculateCosts(c);
+            const proofVal = val('proofDate') ? 'Sí' : 'No';
+
+            const rows = [
+                ['Fotocomposición', c.costPhotocomposition],
+                ['Manipulado', c.costManipulado],
+                ['Mano de obra', c.laborHours * c.laborPricePerHour],
+                ['Desplazamiento', c.travelKm * c.travelPricePerKm],
+                ['Impresiones color', c.printColorQty * c.printColorPrice],
+                ['Impresiones B/N', c.printBWQty * c.printBWPrice],
+                ['Vinilo polimérico', c.vinylPolyAmount],
+                ['Vinilo monomérico', c.vinylMonoAmount],
+                ['Vinilo de corte', c.vinylCutAmount],
+                ['Vinilo + Laminado', c.laminadoAmount]
+            ];
+            collectCustomCostRows().forEach(row => {
+                const amount = parseFloat(row.amount) || 0;
+                if (amount > 0 || row.name) rows.push([row.name || 'Otro', amount]);
+            });
+            if (c.otherCostAmount > 0) rows.push([val('otherCostDesc') || 'Otros gastos', c.otherCostAmount]);
+
+            const rowsHtml = rows.map(([label, amount]) => `
+                <div class="flex justify-between text-slate-300"><span>${escapeHtml(label)}</span><span>${amount.toFixed(2)} €</span></div>
+            `).join('');
+
+            document.getElementById('wizardSummary').innerHTML = `
+                <div class="flex justify-between items-start pb-2 mb-2 border-b border-slate-700">
+                    <div>
+                        <div class="text-lg font-bold text-blue-400">${val('orderNum') || 'OT-----'}</div>
+                        <div class="text-xs text-slate-400">Entrada: ${formatDate(val('orderDate')) || '-'} ${val('orderDeliveryDate') ? '· Entrega: ' + formatDate(val('orderDeliveryDate')) : ''}</div>
+                    </div>
+                    <span class="text-xs px-2 py-1 rounded-full border border-slate-600 text-slate-300">${val('orderStatus')}</span>
+                </div>
+                <div class="pb-2 mb-2 border-b border-slate-700">
+                    <div class="text-slate-200 font-semibold">${escapeHtml(val('clientName') || '[Sin cliente]')}</div>
+                    <div class="text-xs text-slate-400">${escapeHtml(val('clientCif') || '-')} · ${escapeHtml(val('clientPhone') || '-')}</div>
+                </div>
+                <div class="pb-2 mb-2 border-b border-slate-700">
+                    <div class="text-slate-200 font-semibold">${escapeHtml(val('jobTitle') || '[Sin título]')}</div>
+                    <div class="text-xs text-slate-400">${val('jobQuantity') || '0'} ud. · ${escapeHtml(val('jobFormat') || '-')} · Prueba: ${proofVal}</div>
+                </div>
+                <div class="space-y-0.5 text-xs pb-2 mb-2 border-b border-slate-700">
+                    ${rowsHtml}
+                </div>
+                <div class="flex justify-between items-center text-xs text-slate-400 mb-1">
+                    <span>Subtotal: ${subtotal.toFixed(2)} €</span>
+                    <span>Margen: ${c.marginPercent}%</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-300 font-semibold">TOTAL</span>
+                    <span class="text-xl font-black text-emerald-400">${total.toFixed(2)} €</span>
+                </div>
+            `;
+        }
+
+        // Dispara el guardado del formulario desde el botón de arriba, sin importar en qué paso estés
+        function submitFormFromTop() {
+            document.getElementById('orderForm').requestSubmit();
+        }
+
+        function closeModal() {
+            document.getElementById('orderModal').classList.add('hidden');
+        }
+
+        // Calcula subtotal y total (con margen) de los costes en tiempo real
+        // Calcula el importe de un material a partir de ancho x largo x precio/m²
+        function materialAmount(prefix) {
+            const num = (id) => parseFloat(document.getElementById(id).value) || 0;
+            return num(prefix + 'Width') * num(prefix + 'Length') * num(prefix + 'Price');
+        }
+
+        // ---- Filas repetibles de vinilo (marca, color, ancho, largo, €/m²) ----
+        let vinylRowIds = { vinylPoly: [], vinylMono: [], vinylCut: [], vinylLam: [] };
+
+        function vinylRowHtml(type, rowId, data = {}) {
+            const brand = escapeHtml(data.brand || '');
+            const color = escapeHtml(data.color || '');
+            const width = data.width || '';
+            const length = data.length || '';
+            const price = data.price || '';
+            return `
+                <div id="row_${type}_${rowId}" class="bg-slate-800/60 p-2 rounded-lg border border-slate-700/50 space-y-1.5">
+                    <div class="flex gap-1.5">
+                        <input type="text" placeholder="Marca" value="${brand}" data-field="brand" data-row="${type}_${rowId}" class="flex-1 bg-slate-900 border border-slate-700 rounded p-1.5 text-slate-100 text-xs focus:border-emerald-500 focus:outline-none">
+                        <input type="text" placeholder="Color" value="${color}" data-field="color" data-row="${type}_${rowId}" class="flex-1 bg-slate-900 border border-slate-700 rounded p-1.5 text-slate-100 text-xs focus:border-emerald-500 focus:outline-none">
+                        <button type="button" onclick="removeVinylRow('${type}','${rowId}')" class="text-rose-400 hover:text-rose-300 px-2"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <input type="number" step="0.01" min="0" placeholder="Ancho m" value="${width}" oninput="updateCostTotals()" data-field="width" data-row="${type}_${rowId}" class="cost-field bg-slate-900 border border-slate-700 rounded p-1.5 text-slate-100 text-xs focus:border-emerald-500 focus:outline-none">
+                        <input type="number" step="0.01" min="0" placeholder="Largo m" value="${length}" oninput="updateCostTotals()" data-field="length" data-row="${type}_${rowId}" class="cost-field bg-slate-900 border border-slate-700 rounded p-1.5 text-slate-100 text-xs focus:border-emerald-500 focus:outline-none">
+                        <input type="number" step="0.01" min="0" placeholder="€/m²" value="${price}" oninput="updateCostTotals()" data-field="price" data-row="${type}_${rowId}" class="cost-field bg-slate-900 border border-slate-700 rounded p-1.5 text-slate-100 text-xs focus:border-emerald-500 focus:outline-none">
+                    </div>
+                    <div class="text-right text-[11px] text-slate-500">Importe: <span data-amount="${type}_${rowId}" class="text-slate-300 font-semibold">0.00 €</span></div>
+                </div>`;
+        }
+
+        function addVinylRow(type, data = {}) {
+            const rowId = 'r' + Date.now() + Math.floor(Math.random() * 1000);
+            vinylRowIds[type].push(rowId);
+            document.getElementById(type + 'Rows').insertAdjacentHTML('beforeend', vinylRowHtml(type, rowId, data));
+            updateCostTotals();
+        }
+
+        function removeVinylRow(type, rowId) {
+            vinylRowIds[type] = vinylRowIds[type].filter(id => id !== rowId);
+            const rowEl = document.getElementById('row_' + type + '_' + rowId);
+            if (rowEl) rowEl.remove();
+            updateCostTotals();
+        }
+
+        function resetVinylRows() {
+            ['vinylPoly', 'vinylMono', 'vinylCut', 'vinylLam'].forEach(type => {
+                vinylRowIds[type] = [];
+                document.getElementById(type + 'Rows').innerHTML = '';
+            });
+            resetCustomCostRows();
+        }
+
+        // ---- Filas "Otros" (nombre libre + importe, para materiales que no tienen casilla propia) ----
+        let customCostRowIds = [];
+
+        function customCostRowHtml(rowId, data = {}) {
+            const name = escapeHtml(data.name || '');
+            const amount = data.amount || '';
+            return `
+                <div id="row_customCost_${rowId}" class="flex gap-1.5 items-center bg-slate-800/60 p-2 rounded-lg border border-slate-700/50">
+                    <input type="text" placeholder="Ej: Metacrilato" value="${name}" oninput="updateCostTotals()" data-field="name" data-row="customCost_${rowId}" class="flex-1 bg-slate-900 border border-slate-700 rounded p-1.5 text-slate-100 text-xs focus:border-emerald-500 focus:outline-none">
+                    <input type="number" step="0.01" min="0" placeholder="€" value="${amount}" oninput="updateCostTotals()" data-field="amount" data-row="customCost_${rowId}" class="cost-field w-24 bg-slate-900 border border-slate-700 rounded p-1.5 text-slate-100 text-xs focus:border-emerald-500 focus:outline-none">
+                    <button type="button" onclick="removeCustomCostRow('${rowId}')" class="text-rose-400 hover:text-rose-300 px-1"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                </div>`;
+        }
+
+        function addCustomCostRow(data = {}) {
+            const rowId = 'r' + Date.now() + Math.floor(Math.random() * 1000);
+            customCostRowIds.push(rowId);
+            document.getElementById('customCostRows').insertAdjacentHTML('beforeend', customCostRowHtml(rowId, data));
+            document.getElementById('emptyCustomCost').classList.add('hidden');
+            updateCostTotals();
+        }
+
+        function removeCustomCostRow(rowId) {
+            customCostRowIds = customCostRowIds.filter(id => id !== rowId);
+            const rowEl = document.getElementById('row_customCost_' + rowId);
+            if (rowEl) rowEl.remove();
+            if (customCostRowIds.length === 0) document.getElementById('emptyCustomCost').classList.remove('hidden');
+            updateCostTotals();
+        }
+
+        function resetCustomCostRows() {
+            customCostRowIds = [];
+            document.getElementById('customCostRows').innerHTML = '';
+            document.getElementById('emptyCustomCost').classList.remove('hidden');
+        }
+
+        // Calcula (y pinta) el total de todos los conceptos "Otros"
+        function computeCustomCostTotal() {
+            let total = 0;
+            customCostRowIds.forEach(rowId => {
+                const amount = parseFloat(getVinylRowField('customCost', rowId, 'amount')) || 0;
+                total += amount;
+            });
+            const totalEl = document.getElementById('customCostTotalAmount');
+            if (totalEl) totalEl.innerText = total.toFixed(2) + ' €';
+            return total;
+        }
+
+        function collectCustomCostRows() {
+            return customCostRowIds.map(rowId => ({
+                name: getVinylRowField('customCost', rowId, 'name'),
+                amount: getVinylRowField('customCost', rowId, 'amount')
+            }));
+        }
+
+        // Suma un array de filas "Otros" ya guardado (para tarjetas y resumen A4)
+        function sumCustomCostRows(rows) {
+            if (!Array.isArray(rows)) return 0;
+            return rows.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+        }
+
+        function getVinylRowField(type, rowId, field) {
+            const el = document.querySelector(`[data-row="${type}_${rowId}"][data-field="${field}"]`);
+            return el ? el.value : '';
+        }
+
+        // Calcula (y pinta en pantalla) el total de un tipo de vinilo sumando todas sus filas
+        function computeVinylTypeTotal(type) {
+            let total = 0;
+            vinylRowIds[type].forEach(rowId => {
+                const w = parseFloat(getVinylRowField(type, rowId, 'width')) || 0;
+                const l = parseFloat(getVinylRowField(type, rowId, 'length')) || 0;
+                const p = parseFloat(getVinylRowField(type, rowId, 'price')) || 0;
+                const amt = w * l * p;
+                const amtEl = document.querySelector(`[data-amount="${type}_${rowId}"]`);
+                if (amtEl) amtEl.innerText = amt.toFixed(2) + ' €';
+                total += amt;
+            });
+            const totalEl = document.getElementById(type + 'TotalAmount');
+            if (totalEl) totalEl.innerText = total.toFixed(2) + ' €';
+            return total;
+        }
+
+        // Recoge las filas de un tipo de vinilo para guardarlas en la orden
+        function collectVinylRows(type) {
+            return vinylRowIds[type].map(rowId => ({
+                brand: getVinylRowField(type, rowId, 'brand'),
+                color: getVinylRowField(type, rowId, 'color'),
+                width: getVinylRowField(type, rowId, 'width'),
+                length: getVinylRowField(type, rowId, 'length'),
+                price: getVinylRowField(type, rowId, 'price')
+            }));
+        }
+
+        // Suma el importe de un array de filas de vinilo ya guardado (para tarjetas y resumen A4)
+        function sumVinylRows(rows) {
+            if (!Array.isArray(rows)) return 0;
+            return rows.reduce((sum, r) => sum + ((parseFloat(r.width) || 0) * (parseFloat(r.length) || 0) * (parseFloat(r.price) || 0)), 0);
+        }
+
+        function getCostValues() {
+            const num = (id) => parseFloat(document.getElementById(id).value) || 0;
+            return {
+                costPhotocomposition: num('costPhotocomposition'),
+                costManipulado: num('costManipulado'),
+                laborHours: num('laborHours'),
+                laborPricePerHour: num('laborPricePerHour'),
+                travelKm: num('travelKm'),
+                travelPricePerKm: num('travelPricePerKm'),
+                printColorQty: num('printColorQty'),
+                printColorPrice: num('printColorPrice'),
+                printBWQty: num('printBWQty'),
+                printBWPrice: num('printBWPrice'),
+                vinylPolyAmount: computeVinylTypeTotal('vinylPoly'),
+                vinylMonoAmount: computeVinylTypeTotal('vinylMono'),
+                vinylCutAmount: computeVinylTypeTotal('vinylCut'),
+                laminadoAmount: computeVinylTypeTotal('vinylLam'),
+                customCostAmount: computeCustomCostTotal(),
+                otherCostAmount: num('otherCostAmount'),
+                marginPercent: num('marginPercent')
+            };
+        }
+
+        function calculateCosts(c) {
+            const subtotal = c.costPhotocomposition + c.costManipulado +
+                (c.laborHours * c.laborPricePerHour) + (c.travelKm * c.travelPricePerKm) +
+                (c.printColorQty * c.printColorPrice) + (c.printBWQty * c.printBWPrice) +
+                c.vinylPolyAmount + c.vinylMonoAmount + c.vinylCutAmount + c.laminadoAmount +
+                c.customCostAmount + c.otherCostAmount;
+            const total = subtotal * (1 + c.marginPercent / 100);
+            return { subtotal, total };
+        }
+
+        // ---- Calculadora de 3 vías para Impresiones (Cantidad / Precio unidad / Total) ----
+        // Al tocar cualquiera de los 3 campos, calcula el que falta a partir de los otros dos
+        function handleImpresionInput(type, field) {
+            const qtyEl = document.getElementById('print' + type + 'Qty');
+            const priceEl = document.getElementById('print' + type + 'Price');
+            const totalEl = document.getElementById('print' + type + 'Total');
+            const qty = parseFloat(qtyEl.value) || 0;
+            const price = parseFloat(priceEl.value) || 0;
+            const total = parseFloat(totalEl.value) || 0;
+
+            if (field === 'qty') {
+                if (price > 0) {
+                    // Ya había precio/ud puesto: recalcula el total con la nueva cantidad
+                    totalEl.value = qty > 0 ? (qty * price).toFixed(2) : '';
+                } else if (total > 0 && qty > 0) {
+                    // Ya había un total puesto: calcula el precio/ud que corresponde a esta cantidad
+                    priceEl.value = (total / qty).toFixed(4);
+                }
+            } else if (field === 'price') {
+                if (qty > 0) {
+                    // Ya había cantidad puesta: recalcula el total con el nuevo precio/ud
+                    totalEl.value = price > 0 ? (qty * price).toFixed(2) : '';
+                } else if (total > 0 && price > 0) {
+                    // Ya había un total puesto: calcula la cantidad que corresponde a este precio/ud
+                    qtyEl.value = Math.round(total / price);
+                }
+            } else if (field === 'total') {
+                if (qty > 0) {
+                    // Ya había cantidad puesta: calcula el precio/ud a partir del total
+                    priceEl.value = total > 0 ? (total / qty).toFixed(4) : '';
+                } else if (price > 0) {
+                    // Ya había precio/ud puesto: calcula la cantidad a partir del total
+                    qtyEl.value = total > 0 ? Math.round(total / price) : '';
+                }
+            }
+            updateCostTotals();
+        }
+
+        // Refresca el campo "Total €" a partir de cantidad x precio (al cargar una orden guardada)
+        function updateImpresionesDisplay(type) {
+            const qty = parseFloat(document.getElementById('print' + type + 'Qty').value) || 0;
+            const price = parseFloat(document.getElementById('print' + type + 'Price').value) || 0;
+            const totalEl = document.getElementById('print' + type + 'Total');
+            totalEl.value = (qty > 0 && price > 0) ? (qty * price).toFixed(2) : '';
+        }
+
+        function updateCostTotals() {
+            // Actualiza el importe visible de mano de obra
+            const laborHours = parseFloat(document.getElementById('laborHours').value) || 0;
+            const laborPrice = parseFloat(document.getElementById('laborPricePerHour').value) || 0;
+            const laborEl = document.getElementById('laborAmount');
+            if (laborEl) laborEl.innerText = (laborHours * laborPrice).toFixed(2) + ' €';
+
+            // Actualiza el importe visible de desplazamiento
+            const travelKm = parseFloat(document.getElementById('travelKm').value) || 0;
+            const travelPrice = parseFloat(document.getElementById('travelPricePerKm').value) || 0;
+            const travelEl = document.getElementById('travelAmount');
+            if (travelEl) travelEl.innerText = (travelKm * travelPrice).toFixed(2) + ' €';
+
+            // getCostValues() ya recalcula y pinta los totales de cada tipo de vinilo (incluido Vinilo+Laminado)
+            const c = getCostValues();
+            const { subtotal, total } = calculateCosts(c);
+            document.getElementById('costSubtotalDisplay').innerText = subtotal.toFixed(2) + ' €';
+            document.getElementById('costTotalDisplay').innerText = total.toFixed(2) + ' €';
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+
+            if (!document.getElementById('clientName').value.trim()) {
+                alert('Falta el nombre del cliente.');
+                goToStep(1);
+                return;
+            }
+            if (!document.getElementById('jobTitle').value.trim() || !document.getElementById('jobQuantity').value) {
+                alert('Falta el título del trabajo o la cantidad.');
+                goToStep(2);
+                return;
+            }
+            if (!document.getElementById('orderDate').value) {
+                alert('Falta la fecha de entrada.');
+                goToStep(1);
+                return;
+            }
+
+            const orderId = document.getElementById('orderId').value;
+            const proofDateVal = document.getElementById('proofDate').value;
+            const proofVal = proofDateVal ? 'Sí' : 'No';
+            const deliveryMethodVal = document.querySelector('input[name="deliveryMethod"]:checked')?.value || 'Recogida en Taller';
+
+            const orderData = {
+                id: orderId || 'ord_' + Date.now(),
+                orderNum: document.getElementById('orderNum').value,
+                orderRef: document.getElementById('orderRef').value,
+                date: document.getElementById('orderDate').value,
+                deliveryDate: document.getElementById('orderDeliveryDate').value,
+                deliveryMethod: deliveryMethodVal,
+                status: document.getElementById('orderStatus').value,
+                clientNum: document.getElementById('clientNum').value,
+                clientName: document.getElementById('clientName').value,
+                clientCif: document.getElementById('clientCif').value,
+                clientPhone: document.getElementById('clientPhone').value,
+                clientEmail: document.getElementById('clientEmail').value,
+                clientAddress: document.getElementById('clientAddress').value,
+                jobTitle: document.getElementById('jobTitle').value,
+                jobQuantity: document.getElementById('jobQuantity').value,
+                jobFormat: document.getElementById('jobFormat').value,
+                jobPaper: document.getElementById('jobPaper').value,
+                jobFinishing: document.getElementById('jobFinishing').value,
+                jobDescription: document.getElementById('jobDescription').value,
+                proofRequired: proofVal,
+                proofDate: proofDateVal,
+                orderNotes: document.getElementById('orderNotes').value,
+                costPhotocomposition: document.getElementById('costPhotocomposition').value,
+                costManipulado: document.getElementById('costManipulado').value,
+                laborHours: document.getElementById('laborHours').value,
+                laborPricePerHour: document.getElementById('laborPricePerHour').value,
+                travelKm: document.getElementById('travelKm').value,
+                travelPricePerKm: document.getElementById('travelPricePerKm').value,
+                vinylPolyRows: collectVinylRows('vinylPoly'),
+                vinylMonoRows: collectVinylRows('vinylMono'),
+                vinylCutRows: collectVinylRows('vinylCut'),
+                vinylLamRows: collectVinylRows('vinylLam'),
+                customCostRows: collectCustomCostRows(),
+                printColorQty: document.getElementById('printColorQty').value,
+                printColorPrice: document.getElementById('printColorPrice').value,
+                printBWQty: document.getElementById('printBWQty').value,
+                printBWPrice: document.getElementById('printBWPrice').value,
+                otherCostDesc: document.getElementById('otherCostDesc').value,
+                otherCostAmount: document.getElementById('otherCostAmount').value,
+                marginPercent: document.getElementById('marginPercent').value
+            };
+
+            if (currentFormType === 'quote') {
+                if (orderId) {
+                    const idx = quotes.findIndex(o => o.id === orderId);
+                    if (idx !== -1) {
+                        orderData.status = quotes[idx].status; // conserva Pendiente/Aceptado/Rechazado
+                        orderData.photosBefore = quotes[idx].photosBefore || [];
+                        orderData.photosAfter = quotes[idx].photosAfter || [];
+                        orderData.attachedFiles = quotes[idx].attachedFiles || [];
+                        quotes[idx] = orderData;
+                    } else {
+                        orderData.photosBefore = [];
+                        orderData.photosAfter = [];
+                        orderData.attachedFiles = [];
+                        quotes.push(orderData);
+                    }
+                } else {
+                    orderData.status = 'Presupuesto';
+                    orderData.photosBefore = [];
+                    orderData.photosAfter = [];
+                    orderData.attachedFiles = [];
+                    quotes.push(orderData);
+                }
+                saveQuotes();
+            } else {
+                if (orderId) {
+                    const idx = orders.findIndex(o => o.id === orderId);
+                    if (idx !== -1) {
+                        orderData.photosBefore = orders[idx].photosBefore || [];
+                        orderData.photosAfter = orders[idx].photosAfter || [];
+                        orderData.attachedFiles = orders[idx].attachedFiles || [];
+                        orderData.invoiced = orders[idx].invoiced || false;
+                        orderData.invoiceNum = orders[idx].invoiceNum || '';
+                        orders[idx] = orderData;
+                    }
+                } else {
+                    orderData.photosBefore = [];
+                    orderData.photosAfter = [];
+                    orderData.attachedFiles = [];
+                    orders.push(orderData);
+                }
+                saveOrders();
+            }
+
+            closeModal();
+        }
+
+        // Rellena el formulario (ya abierto) con los datos de una orden/presupuesto original, para duplicar
+        function fillFormFromExisting(original) {
+            document.getElementById('orderRef').value = original.orderRef || '';
+            document.getElementById('orderDeliveryDate').value = original.deliveryDate || '';
+            const deliveryRadios = document.getElementsByName('deliveryMethod');
+            for (let r of deliveryRadios) {
+                r.checked = (r.value === (original.deliveryMethod || 'Recogida en Taller'));
+            }
+            document.getElementById('clientNum').value = original.clientNum || '';
+            document.getElementById('clientName').value = original.clientName || '';
+            document.getElementById('clientCif').value = original.clientCif || '';
+            document.getElementById('clientPhone').value = original.clientPhone || '';
+            document.getElementById('clientEmail').value = original.clientEmail || '';
+            document.getElementById('clientAddress').value = original.clientAddress || '';
+            document.getElementById('jobTitle').value = original.jobTitle + ' (Copia)';
+            document.getElementById('jobQuantity').value = original.jobQuantity || '';
+            document.getElementById('jobFormat').value = original.jobFormat || '';
+            document.getElementById('jobPaper').value = original.jobPaper || '';
+            document.getElementById('jobFinishing').value = original.jobFinishing || '';
+            document.getElementById('jobDescription').value = original.jobDescription || '';
+            document.getElementById('orderNotes').value = original.orderNotes || '';
+            document.getElementById('proofDate').value = original.proofDate || '';
+
+            document.getElementById('costPhotocomposition').value = original.costPhotocomposition || '';
+            document.getElementById('costManipulado').value = original.costManipulado || '';
+            document.getElementById('laborHours').value = original.laborHours || '';
+            document.getElementById('laborPricePerHour').value = original.laborPricePerHour || '';
+            document.getElementById('travelKm').value = original.travelKm || '';
+            document.getElementById('travelPricePerKm').value = original.travelPricePerKm || '';
+            resetVinylRows();
+            (original.vinylPolyRows || []).forEach(row => addVinylRow('vinylPoly', row));
+            (original.vinylMonoRows || []).forEach(row => addVinylRow('vinylMono', row));
+            (original.vinylCutRows || []).forEach(row => addVinylRow('vinylCut', row));
+            (original.vinylLamRows || []).forEach(row => addVinylRow('vinylLam', row));
+            (original.customCostRows || []).forEach(row => addCustomCostRow(row));
+            document.getElementById('printColorQty').value = original.printColorQty || '';
+            document.getElementById('printColorPrice').value = original.printColorPrice || '';
+            document.getElementById('printBWQty').value = original.printBWQty || '';
+            document.getElementById('printBWPrice').value = original.printBWPrice || '';
+            document.getElementById('otherCostDesc').value = original.otherCostDesc || '';
+            document.getElementById('otherCostAmount').value = original.otherCostAmount || '';
+            document.getElementById('marginPercent').value = original.marginPercent || '';
+            updateCostTotals();
+            updateImpresionesDisplay('Color');
+            updateImpresionesDisplay('BW');
+        }
+
+        function duplicateOrder(id) {
+            const original = orders.find(o => o.id === id);
+            if (!original) return;
+            openModal('new', null, 'order');
+            fillFormFromExisting(original);
+        }
+
+        function duplicateQuote(id) {
+            const original = quotes.find(q => q.id === id);
+            if (!original) return;
+            openModal('new', null, 'quote');
+            fillFormFromExisting(original);
+        }
+
+        function deleteOrder(id) {
+            if (confirm('¿Estás seguro de que deseas eliminar esta orden de trabajo?')) {
+                orders = orders.filter(o => o.id !== id);
+                saveOrders();
+            }
+        }
+
+        function printOrder(id, source = 'orders') {
+            const list = source === 'quotes' ? quotes : (source === 'invoices' ? invoices : orders);
+            const order = list.find(o => o.id === id);
+            if (!order) return;
+
+            document.getElementById('printOrderNum').innerText = order.orderNum;
+            document.getElementById('printDate').innerText = formatDate(order.date);
+            document.getElementById('printClientName').innerText = order.clientName || '-';
+            document.getElementById('printClientNum').innerText = order.clientNum || '-';
+            document.getElementById('printClientCif').innerText = order.clientCif || '-';
+            const phoneEl = document.getElementById('printClientPhone');
+            if (order.clientPhone) {
+                phoneEl.innerText = order.clientPhone + ' 📞';
+                phoneEl.href = 'tel:' + order.clientPhone.replace(/[^0-9+]/g, '');
+            } else {
+                phoneEl.innerText = '-';
+                phoneEl.removeAttribute('href');
+            }
+            document.getElementById('printClientEmail').innerText = order.clientEmail || '-';
+            document.getElementById('printClientAddress').innerText = order.clientAddress || '-';
+
+            document.getElementById('printJobTitle').innerText = order.jobTitle || '-';
+            document.getElementById('printJobQuantity').innerText = (order.jobQuantity || '0') + ' unidades';
+            document.getElementById('printJobFormat').innerText = order.jobFormat || '-';
+
+            const proofBlock = document.getElementById('printProofBlock');
+            if (source === 'invoices') {
+                proofBlock.classList.add('hidden');
+            } else {
+                proofBlock.classList.remove('hidden');
+                const proofEl = document.getElementById('printProofRequired');
+                proofEl.innerText = order.proofRequired === 'Sí' ? 'SÍ REQUIERE PRUEBA' : 'NO REQUIERE PRUEBA';
+                proofEl.className = order.proofRequired === 'Sí'
+                    ? 'inline-block font-bold px-2 py-0.5 rounded text-xs mt-1 bg-amber-100 text-amber-800 border border-amber-300'
+                    : 'inline-block font-bold px-2 py-0.5 rounded text-xs mt-1 bg-slate-100 text-slate-700 border border-slate-300';
+            }
+
+            document.getElementById('printJobPaper').innerText = order.jobPaper || '-';
+            document.getElementById('printJobFinishing').innerText = order.jobFinishing || '-';
+            document.getElementById('printJobDescription').innerText = order.jobDescription || 'Sin especificaciones adicionales.';
+            document.getElementById('printOrderNotes').innerText = order.orderNotes || 'Sin observaciones.';
+
+            // Desglose de costes
+            const c = getCostValuesFromOrder(order);
+            const { subtotal, total } = calculateCosts(c);
+
+            document.getElementById('printCostPhoto').innerText = c.costPhotocomposition.toFixed(2) + ' €';
+            document.getElementById('printCostManip').innerText = c.costManipulado.toFixed(2) + ' €';
+            document.getElementById('printCostLabor').innerText = (c.laborHours * c.laborPricePerHour).toFixed(2) + ' €' + (c.laborHours ? ' (' + c.laborHours + ' h)' : '');
+            document.getElementById('printCostTravel').innerText = (c.travelKm * c.travelPricePerKm).toFixed(2) + ' €' + (c.travelKm ? ' (' + c.travelKm + ' km)' : '');
+            document.getElementById('printCostColor').innerText = (c.printColorQty * c.printColorPrice).toFixed(2) + ' € (' + c.printColorQty + ' ud)';
+            document.getElementById('printCostBW').innerText = (c.printBWQty * c.printBWPrice).toFixed(2) + ' € (' + c.printBWQty + ' ud)';
+            document.getElementById('printCostSubtotal').innerText = subtotal.toFixed(2) + ' €';
+            document.getElementById('printMarginPercent').innerText = c.marginPercent + '%';
+            document.getElementById('printCostTotal').innerText = total.toFixed(2) + ' €';
+
+            // Título del documento y bloque de IVA (solo para facturas)
+            const titleEl = document.getElementById('printDocTitle');
+            const subtitleEl = document.getElementById('printDocSubtitle');
+            const ivaBlock = document.getElementById('printIvaBlock');
+            if (source === 'invoices') {
+                titleEl.innerText = 'FACTURA';
+                subtitleEl.innerText = order.sourceOrderNum ? 'Ref. orden de trabajo: ' + order.sourceOrderNum : 'Documento de facturación';
+                const ivaPercent = parseFloat(order.ivaPercent) || 0;
+                const ivaAmount = total * (ivaPercent / 100);
+                ivaBlock.classList.remove('hidden');
+                document.getElementById('printIvaBase').innerText = total.toFixed(2) + ' €';
+                document.getElementById('printIvaPercent').innerText = ivaPercent;
+                document.getElementById('printIvaAmount').innerText = ivaAmount.toFixed(2) + ' €';
+                document.getElementById('printIvaGrandTotal').innerText = (total + ivaAmount).toFixed(2) + ' €';
+            } else if (source === 'quotes') {
+                titleEl.innerText = 'PRESUPUESTO';
+                subtitleEl.innerText = 'Presupuesto — sujeto a aceptación del cliente';
+                ivaBlock.classList.add('hidden');
+            } else {
+                titleEl.innerText = 'ÓRDEN DE TRABAJO';
+                subtitleEl.innerText = 'Ficha interna de producción';
+                ivaBlock.classList.add('hidden');
+            }
+
+            // Listado detallado de tiras de vinilo (marca, color, medidas)
+            const vinylLabels = { vinylPolyRows: 'Vinilo Polimérico', vinylMonoRows: 'Vinilo Monomérico', vinylCutRows: 'Vinilo de Corte', vinylLamRows: 'Vinilo + Laminado' };
+            let vinylHtml = '';
+            Object.keys(vinylLabels).forEach(key => {
+                (order[key] || []).forEach(row => {
+                    const w = parseFloat(row.width) || 0;
+                    const l = parseFloat(row.length) || 0;
+                    const p = parseFloat(row.price) || 0;
+                    const amount = w * l * p;
+                    if (w === 0 && l === 0 && p === 0 && !row.brand && !row.color) return;
+                    const brandColor = [row.brand, row.color].filter(Boolean).join(' ');
+                    vinylHtml += `<div class="flex justify-between text-slate-600"><span>${vinylLabels[key]}${brandColor ? ' — ' + escapeHtml(brandColor) : ''} (${w}×${l}m)</span><span class="font-medium text-slate-800">${amount.toFixed(2)} €</span></div>`;
+                });
+            });
+            (order.customCostRows || []).forEach(row => {
+                const amount = parseFloat(row.amount) || 0;
+                if (amount === 0 && !row.name) return;
+                vinylHtml += `<div class="flex justify-between text-slate-600"><span>${escapeHtml(row.name || 'Otro')}</span><span class="font-medium text-slate-800">${amount.toFixed(2)} €</span></div>`;
+            });
+            document.getElementById('printVinylRows').innerHTML = vinylHtml;
+
+            const otherRow = document.getElementById('printOtherCostRow');
+            if (order.otherCostDesc || c.otherCostAmount > 0) {
+                otherRow.classList.remove('hidden');
+                document.getElementById('printOtherCostDesc').innerText = order.otherCostDesc || 'Otros gastos';
+                document.getElementById('printOtherCostAmount').innerText = c.otherCostAmount.toFixed(2) + ' €';
+            } else {
+                otherRow.classList.add('hidden');
+            }
+
+            document.getElementById('resumenModal').classList.remove('hidden');
+        }
+
+        function closeResumenModal() {
+            document.getElementById('resumenModal').classList.add('hidden');
+        }
+
+        // Genera y descarga el resumen como archivo PDF directamente
+        // Genera y descarga el resumen como archivo PDF, respetando los bloques
+        // (cabecera, cliente, especificaciones, costes, firmas) sin cortarlos por la mitad
+        async function downloadPDF(evt) {
+            const btn = evt.target.closest('button');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generando...';
+            btn.disabled = true;
+
+            let clone = null;
+            try {
+                const original = document.getElementById('print-area');
+
+                // Clonamos el contenido a un contenedor limpio, fuera del modal con scroll,
+                // para que la captura no dependa del tamaño de pantalla ni del scroll actual
+                clone = original.cloneNode(true);
+                clone.id = 'print-area-clone';
+                clone.style.position = 'fixed';
+                clone.style.top = '0';
+                clone.style.left = '-9999px';
+                clone.style.width = '794px'; // ancho de una A4 a 96dpi aprox.
+                clone.style.margin = '0';
+                clone.style.boxShadow = 'none';
+                clone.classList.remove('rounded-lg', 'shadow-2xl');
+                document.body.appendChild(clone);
+
+                // Pequeña espera para que el navegador termine de maquetar el clon antes de capturarlo
+                await new Promise(resolve => setTimeout(resolve, 50));
+
+                const canvas = await html2canvas(clone, { scale: 2.5, backgroundColor: '#ffffff', useCORS: true, windowWidth: 794 });
+                const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pageWidth = 210;
+                const pageHeight = 297;
+                const margin = 6;
+                const maxWidth = pageWidth - margin * 2;
+                const maxHeight = pageHeight - margin * 2;
+
+                // Tamaño natural de la imagen a ancho completo de página
+                const naturalHeight = (canvas.height * maxWidth) / canvas.width;
+
+                let finalWidth = maxWidth;
+                let finalHeight = naturalHeight;
+
+                // Si no cupiera entero de alto, se reduce proporcionalmente hasta que quepa en UNA sola página
+                if (naturalHeight > maxHeight) {
+                    const scale = maxHeight / naturalHeight;
+                    finalHeight = maxHeight;
+                    finalWidth = maxWidth * scale;
+                }
+
+                // Centrado en la página
+                const offsetX = margin + (maxWidth - finalWidth) / 2;
+                const offsetY = margin;
+
+                pdf.addImage(imgData, 'JPEG', offsetX, offsetY, finalWidth, finalHeight);
+
+                const docNum = document.getElementById('printOrderNum').innerText || 'documento';
+                pdf.save(`${docNum}.pdf`);
+            } catch (err) {
+                console.error('Error generando PDF:', err);
+                alert('No se pudo generar el PDF. Inténtalo de nuevo.');
+            } finally {
+                if (clone && clone.parentNode) clone.parentNode.removeChild(clone);
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        }
+
+        // ---- Gestión de Fotos (Antes / Después) ----
+        let currentPhotoOrderId = null;
+        let currentPhotoSource = 'orders';
+
+        function openPhotoModal(orderId, source = 'orders') {
+            const list = source === 'quotes' ? quotes : orders;
+            const order = list.find(o => o.id === orderId);
+            if (!order) return;
+            currentPhotoOrderId = orderId;
+            currentPhotoSource = source;
+            document.getElementById('photoModalOrderNum').innerText = order.orderNum;
+            renderPhotoGalleries();
+            document.getElementById('photoModal').classList.remove('hidden');
+        }
+
+        function closePhotoModal() {
+            document.getElementById('photoModal').classList.add('hidden');
+            currentPhotoOrderId = null;
+        }
+
+        function renderPhotoGalleries() {
+            const list = currentPhotoSource === 'quotes' ? quotes : orders;
+            const order = list.find(o => o.id === currentPhotoOrderId);
+            if (!order) return;
+            if (!order.photosBefore) order.photosBefore = [];
+            if (!order.photosAfter) order.photosAfter = [];
+
+            renderGallery('galleryBefore', 'emptyBefore', order.photosBefore, 'before');
+            renderGallery('galleryAfter', 'emptyAfter', order.photosAfter, 'after');
+        }
+
+        function renderGallery(gridId, emptyId, photos, type) {
+            const grid = document.getElementById(gridId);
+            const empty = document.getElementById(emptyId);
+            grid.innerHTML = '';
+
+            if (photos.length === 0) {
+                empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+
+            photos.forEach((src, idx) => {
+                const wrap = document.createElement('div');
+                wrap.className = 'relative aspect-square rounded-lg overflow-hidden border border-slate-700 group';
+                wrap.innerHTML = `
+                    <img src="${src}" class="w-full h-full object-cover cursor-pointer" onclick="openLightbox('${src}')">
+                    <button onclick="removePhoto('${type}', ${idx})" title="Eliminar foto" class="absolute top-1 right-1 bg-black/60 hover:bg-rose-600 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center transition">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                `;
+                grid.appendChild(wrap);
+            });
+        }
+
+        // Reduce el tamaño de la imagen antes de guardarla (para no llenar el almacenamiento del móvil)
+        function compressImage(file, maxWidth = 1280, quality = 0.7) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        let { width, height } = img;
+                        if (width > maxWidth) {
+                            height = Math.round(height * (maxWidth / width));
+                            width = maxWidth;
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function handlePhotoAdd(type, event) {
+            const files = Array.from(event.target.files || []);
+            if (files.length === 0) return;
+
+            const list = currentPhotoSource === 'quotes' ? quotes : orders;
+            const order = list.find(o => o.id === currentPhotoOrderId);
+            if (!order) return;
+            if (!order.photosBefore) order.photosBefore = [];
+            if (!order.photosAfter) order.photosAfter = [];
+
+            for (const file of files) {
+                try {
+                    const compressed = await compressImage(file);
+                    if (type === 'before') {
+                        order.photosBefore.push(compressed);
+                    } else {
+                        order.photosAfter.push(compressed);
+                    }
+                } catch (err) {
+                    console.warn('No se pudo procesar una foto:', err);
+                }
+            }
+
+            event.target.value = '';
+            if (currentPhotoSource === 'quotes') { saveQuotes(); } else { saveOrders(); }
+            renderPhotoGalleries();
+        }
+
+        function removePhoto(type, index) {
+            const list = currentPhotoSource === 'quotes' ? quotes : orders;
+            const order = list.find(o => o.id === currentPhotoOrderId);
+            if (!order) return;
+
+            if (!confirm('¿Eliminar esta foto?')) return;
+
+            if (type === 'before') {
+                order.photosBefore.splice(index, 1);
+            } else {
+                order.photosAfter.splice(index, 1);
+            }
+            if (currentPhotoSource === 'quotes') { saveQuotes(); } else { saveOrders(); }
+            renderPhotoGalleries();
+        }
+
+        function openLightbox(src) {
+            document.getElementById('lightboxImg').src = src;
+            document.getElementById('lightbox').classList.remove('hidden');
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.add('hidden');
+        }
+
+        // ---- Gestión de Archivos adjuntos (PDFs, documentos del cliente...) ----
+        let currentFileOrderId = null;
+        let currentFileSource = 'orders';
+
+        function openFileModal(orderId, source = 'orders') {
+            const list = source === 'quotes' ? quotes : orders;
+            const order = list.find(o => o.id === orderId);
+            if (!order) return;
+            currentFileOrderId = orderId;
+            currentFileSource = source;
+            document.getElementById('fileModalOrderNum').innerText = order.orderNum;
+            renderFileList();
+            document.getElementById('fileModal').classList.remove('hidden');
+        }
+
+        function closeFileModal() {
+            document.getElementById('fileModal').classList.add('hidden');
+            currentFileOrderId = null;
+        }
+
+        function renderFileList() {
+            const list = currentFileSource === 'quotes' ? quotes : orders;
+            const order = list.find(o => o.id === currentFileOrderId);
+            if (!order) return;
+            if (!order.attachedFiles) order.attachedFiles = [];
+
+            const container = document.getElementById('fileList');
+            const empty = document.getElementById('emptyFiles');
+            container.innerHTML = '';
+
+            if (order.attachedFiles.length === 0) {
+                empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+
+            order.attachedFiles.forEach((file, idx) => {
+                const isImage = (file.type || '').startsWith('image/');
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-3 bg-slate-900 border border-slate-700 rounded-lg p-2.5';
+                row.innerHTML = `
+                    <div class="w-9 h-9 rounded bg-slate-700 flex items-center justify-center flex-shrink-0 text-slate-300">
+                        <i class="fa-solid ${isImage ? 'fa-image' : 'fa-file-pdf'}"></i>
+                    </div>
+                    <a href="${file.dataUrl}" target="_blank" rel="noopener" class="flex-1 min-w-0 text-slate-200 text-sm truncate hover:text-blue-400">${escapeHtml(file.name)}</a>
+                    <button onclick="removeFile(${idx})" title="Eliminar" class="text-rose-400 hover:text-rose-300 p-1.5">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function readFileAsDataUrl(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function handleFileAdd(event) {
+            const files = Array.from(event.target.files || []);
+            if (files.length === 0) return;
+
+            const list = currentFileSource === 'quotes' ? quotes : orders;
+            const order = list.find(o => o.id === currentFileOrderId);
+            if (!order) return;
+            if (!order.attachedFiles) order.attachedFiles = [];
+
+            for (const file of files) {
+                try {
+                    const dataUrl = await readFileAsDataUrl(file);
+                    order.attachedFiles.push({ name: file.name, type: file.type, dataUrl });
+                } catch (err) {
+                    console.warn('No se pudo cargar un archivo:', err);
+                }
+            }
+
+            event.target.value = '';
+            if (currentFileSource === 'quotes') { saveQuotes(); } else { saveOrders(); }
+            renderFileList();
+        }
+
+        function removeFile(index) {
+            const list = currentFileSource === 'quotes' ? quotes : orders;
+            const order = list.find(o => o.id === currentFileOrderId);
+            if (!order) return;
+            if (!confirm('¿Eliminar este archivo?')) return;
+
+            order.attachedFiles.splice(index, 1);
+            if (currentFileSource === 'quotes') { saveQuotes(); } else { saveOrders(); }
+            renderFileList();
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+            return dateStr;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;")
+                      .replace(/</g, "&lt;")
+                      .replace(/>/g, "&gt;")
+                      .replace(/"/g, "&quot;")
+                      .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
