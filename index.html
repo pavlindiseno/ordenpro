@@ -118,7 +118,7 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold tracking-wide text-white">OrdenPro</h1>
-                    <p class="text-xs text-slate-400">Órdenes, presupuestos y facturas</p>
+                    <p class="text-xs text-slate-400">Órdenes, presupuestos y cobros</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -146,30 +146,39 @@
                 </button>
                 <button onclick="switchView('invoices')" class="bg-violet-600 hover:bg-violet-500 text-white font-medium px-2.5 py-1.5 rounded-lg flex items-center space-x-1.5 transition shadow text-xs sm:text-sm">
                     <i class="fa-solid fa-file-invoice-dollar"></i>
-                    <span>Factura</span>
+                    <span>Cobrado</span>
                 </button>
             </div>
         </div>
 
-        <!-- Pestañas Órdenes / Presupuestos / Urgentes / Facturas -->
-        <div class="max-w-7xl mx-auto px-4 pb-2 grid grid-cols-4 sm:flex gap-1.5 sm:gap-2">
-            <button id="tabOrdersBtn" onclick="switchView('orders')" class="view-tab px-1 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-sm font-medium transition flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5">
+        <!-- Pestañas Órdenes / Presupuestos / Urgentes / Cobrado -->
+        <div class="max-w-7xl mx-auto px-4 pb-2 grid grid-cols-2 sm:flex gap-1.5 sm:gap-2">
+            <button id="tabOrdersBtn" onclick="switchView('orders')" class="view-tab px-1 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition flex flex-row items-center justify-center gap-1 sm:gap-1.5">
                 <i class="fa-solid fa-clipboard-list"></i> <span>Órdenes</span>
             </button>
-            <button id="tabUrgentBtn" onclick="switchView('urgent')" class="view-tab px-1 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-sm font-medium transition flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5">
+            <button id="tabUrgentBtn" onclick="switchView('urgent')" class="view-tab px-1 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition flex flex-row items-center justify-center gap-1 sm:gap-1.5">
                 <i class="fa-solid fa-truck-fast text-amber-400"></i> <span>Urgentes</span>
             </button>
-            <button id="tabQuotesBtn" onclick="switchView('quotes')" class="view-tab px-1 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-sm font-medium transition flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5">
+            <button id="tabQuotesBtn" onclick="switchView('quotes')" class="view-tab px-1 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition flex flex-row items-center justify-center gap-1 sm:gap-1.5">
                 <i class="fa-solid fa-file-pen"></i> <span>Presup.</span>
             </button>
-            <button id="tabInvoicesBtn" onclick="switchView('invoices')" class="view-tab px-1 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-sm font-medium transition flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5">
-                <i class="fa-solid fa-file-invoice-dollar"></i> <span>Facturas</span>
+            <button id="tabInvoicesBtn" onclick="switchView('invoices')" class="view-tab px-1 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition flex flex-row items-center justify-center gap-1 sm:gap-1.5">
+                <i class="fa-solid fa-file-invoice-dollar"></i> <span>Cobrado</span>
             </button>
         </div>
     </header>
 
     <!-- Contenido Principal -->
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 space-y-6 no-print">
+
+        <!-- Aviso de entregas urgentes (se muestra solo si hay alguna a 2 días o menos) -->
+        <div id="urgentBanner" class="hidden bg-rose-600 text-white p-3 rounded-xl flex items-center justify-between gap-3 cursor-pointer shadow-lg" onclick="switchView('urgent')">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-triangle-exclamation text-xl flex-shrink-0"></i>
+                <p id="urgentBannerText" class="text-sm font-semibold"></p>
+            </div>
+            <i class="fa-solid fa-chevron-right flex-shrink-0"></i>
+        </div>
 
         <!-- Banner de instalación (se oculta si ya está instalada o el navegador no lo soporta) -->
         <div id="installBanner" class="bg-slate-800 border border-slate-700 p-4 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
@@ -194,6 +203,11 @@
                 <input type="text" id="searchInput" oninput="renderOrders()" placeholder="Buscar por Nº orden, cliente, CIF o trabajo..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
             </div>
             <div class="flex items-center gap-3 w-full md:w-auto justify-end flex-wrap">
+                <label class="text-xs text-slate-400 font-medium">Fecha:</label>
+                <input type="date" id="dateFilter" onchange="renderOrders()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+                <button onclick="document.getElementById('dateFilter').value=''; renderOrders();" title="Quitar filtro de fecha" class="text-slate-400 hover:text-rose-400 text-xs px-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
                 <label class="text-xs text-slate-400 font-medium">Estado:</label>
                 <select id="statusFilter" onchange="renderOrders()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
                     <option value="ALL">Todos los Estados</option>
@@ -209,34 +223,34 @@
         <div id="ordersSection">
         <!-- Tarjetas de Estadísticas -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
+            <button onclick="filterByStat('ALL')" class="bg-slate-800 p-4 rounded-xl border border-slate-700 hover:border-blue-500 transition flex items-center justify-between text-left">
                 <div>
                     <p class="text-xs text-slate-400">Total Órdenes</p>
                     <p id="statTotal" class="text-2xl font-bold text-white">0</p>
                 </div>
                 <i class="fa-solid fa-folder-open text-2xl text-blue-400"></i>
-            </div>
-            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
+            </button>
+            <button onclick="filterByStat('Pendiente')" class="bg-slate-800 p-4 rounded-xl border border-slate-700 hover:border-amber-500 transition flex items-center justify-between text-left">
                 <div>
                     <p class="text-xs text-slate-400">Pendientes</p>
                     <p id="statPending" class="text-2xl font-bold text-amber-400">0</p>
                 </div>
                 <i class="fa-solid fa-clock text-2xl text-amber-400"></i>
-            </div>
-            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
+            </button>
+            <button onclick="filterByStat('Completada')" class="bg-slate-800 p-4 rounded-xl border border-slate-700 hover:border-emerald-500 transition flex items-center justify-between text-left">
                 <div>
                     <p class="text-xs text-slate-400">Completadas</p>
                     <p id="statCompleted" class="text-2xl font-bold text-emerald-400">0</p>
                 </div>
                 <i class="fa-solid fa-check-circle text-2xl text-emerald-400"></i>
-            </div>
-            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
+            </button>
+            <button onclick="filterByStat('Anulada')" class="bg-slate-800 p-4 rounded-xl border border-slate-700 hover:border-rose-500 transition flex items-center justify-between text-left">
                 <div>
                     <p class="text-xs text-slate-400">Anuladas</p>
                     <p id="statCanceled" class="text-2xl font-bold text-rose-400">0</p>
                 </div>
                 <i class="fa-solid fa-ban text-2xl text-rose-400"></i>
-            </div>
+            </button>
         </div>
 
         <!-- Lista / Grid de Órdenes -->
@@ -258,6 +272,19 @@
 
         <!-- SECCIÓN PRESUPUESTOS -->
         <div id="quotesSection" class="hidden">
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col md:flex-row gap-3 justify-between items-center mb-4">
+            <div class="relative w-full md:w-72">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="quoteSearchInput" oninput="renderQuotes()" placeholder="Buscar por cliente o trabajo..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-500">
+            </div>
+            <div class="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
+                <label class="text-xs text-slate-400 font-medium">Fecha:</label>
+                <input type="date" id="quoteDateFilter" onchange="renderQuotes()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-500">
+                <button onclick="document.getElementById('quoteDateFilter').value=''; renderQuotes();" title="Quitar filtro de fecha" class="text-slate-400 hover:text-rose-400 text-xs px-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
         <div class="flex gap-2 mb-4">
             <button id="quoteTabPendiente" onclick="switchQuoteFilter('Presupuesto')" class="quote-subtab px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition">
                 <i class="fa-solid fa-hourglass-half text-amber-400"></i> Pendientes
@@ -301,18 +328,31 @@
         </div>
         <!-- FIN SECCIÓN MÁS URGENTES -->
 
-        <!-- SECCIÓN FACTURAS -->
+        <!-- SECCIÓN COBRADO (FACTURAS) -->
         <div id="invoicesSection" class="hidden">
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col md:flex-row gap-3 justify-between items-center mb-4">
+            <div class="relative w-full md:w-72">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="invoiceSearchInput" oninput="renderInvoices()" placeholder="Buscar por cliente o trabajo..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-violet-500">
+            </div>
+            <div class="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
+                <label class="text-xs text-slate-400 font-medium">Fecha:</label>
+                <input type="date" id="invoiceDateFilter" onchange="renderInvoices()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-violet-500">
+                <button onclick="document.getElementById('invoiceDateFilter').value=''; renderInvoices();" title="Quitar filtro de fecha" class="text-slate-400 hover:text-rose-400 text-xs px-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
         <div id="invoicesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <!-- Las tarjetas se generan dinámicamente -->
         </div>
         <div id="invoicesEmptyState" class="hidden text-center py-12 bg-slate-800/50 border border-slate-700 border-dashed rounded-xl">
             <i class="fa-solid fa-file-invoice-dollar text-4xl text-slate-500 mb-3"></i>
-            <h3 class="text-lg font-semibold text-slate-300">No hay facturas generadas</h3>
-            <p class="text-sm text-slate-400">Genera una factura desde una orden ya completada, con el botón "Factura" de su tarjeta.</p>
+            <h3 class="text-lg font-semibold text-slate-300">No hay cobros generados</h3>
+            <p class="text-sm text-slate-400">Genera un cobro desde una orden ya completada, con el botón "Cobrar" de su tarjeta.</p>
         </div>
         </div>
-        <!-- FIN SECCIÓN FACTURAS -->
+        <!-- FIN SECCIÓN COBRADO -->
 
     </main>
 
@@ -1113,8 +1153,21 @@
             const emptyState = document.getElementById('invoicesEmptyState');
             if (!grid) return;
 
+            const searchEl = document.getElementById('invoiceSearchInput');
+            const dateEl = document.getElementById('invoiceDateFilter');
+            const search = searchEl ? searchEl.value.toLowerCase() : '';
+            const dateFilter = dateEl ? dateEl.value : '';
+
             grid.innerHTML = '';
-            const sorted = [...invoices].sort((a, b) => new Date(b.date) - new Date(a.date));
+            const filtered = invoices.filter(inv => {
+                const matchesSearch = !search ||
+                    (inv.clientName && inv.clientName.toLowerCase().includes(search)) ||
+                    (inv.jobTitle && inv.jobTitle.toLowerCase().includes(search)) ||
+                    (inv.orderNum && inv.orderNum.toLowerCase().includes(search));
+                const matchesDate = !dateFilter || inv.date === dateFilter;
+                return matchesSearch && matchesDate;
+            });
+            const sorted = filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
 
             if (sorted.length === 0) {
                 emptyState.classList.remove('hidden');
@@ -1136,7 +1189,7 @@
                 <div>
                     <div class="flex justify-between items-start mb-3">
                         <span class="text-lg font-bold text-violet-400 font-mono tracking-wide">${invoice.orderNum}</span>
-                        <span class="text-xs px-2.5 py-1 rounded-full font-semibold border bg-violet-500/10 text-violet-300 border-violet-500/30">Factura</span>
+                        <span class="text-xs px-2.5 py-1 rounded-full font-semibold border bg-violet-500/10 text-violet-300 border-violet-500/30">Cobro</span>
                     </div>
                     <h3 class="text-base font-bold text-white mb-1 line-clamp-1">${escapeHtml(invoice.jobTitle)}</h3>
                     <p class="text-sm font-medium text-slate-300 mb-3 flex items-center gap-1.5">
@@ -1149,7 +1202,7 @@
                     </div>
                 </div>
                 <div class="flex items-center justify-between pt-3 border-t border-slate-700/80 gap-2">
-                    <button onclick="printOrder('${invoice.id}', 'invoices')" title="Ver / Imprimir Factura" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs font-medium flex items-center gap-1.5 transition">
+                    <button onclick="printOrder('${invoice.id}', 'invoices')" title="Ver / Imprimir Cobro" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs font-medium flex items-center gap-1.5 transition">
                         <i class="fa-solid fa-print text-blue-400"></i> Ver A4
                     </button>
                     <button onclick="deleteInvoice('${invoice.id}')" title="Eliminar" class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-700 rounded transition">
@@ -1276,16 +1329,48 @@
             return prefix + '-' + String(num).padStart(4, '0');
         }
 
+        // Al tocar una tarjeta de estadísticas, filtra la lista por ese estado
+        function filterByStat(status) {
+            document.getElementById('statusFilter').value = status;
+            renderOrders();
+            document.getElementById('ordersGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Comprueba si hay órdenes pendientes con la entrega a 2 días o menos, y muestra el aviso arriba
+        function checkUrgentBanner() {
+            const banner = document.getElementById('urgentBanner');
+            if (!banner) return;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const soon = orders.filter(o => {
+                if (o.status !== 'Pendiente' || !o.deliveryDate) return false;
+                const d = new Date(o.deliveryDate + 'T00:00:00');
+                const diffDays = Math.ceil((d - today) / (1000 * 60 * 60 * 24));
+                return diffDays <= 2;
+            });
+
+            if (soon.length > 0) {
+                document.getElementById('urgentBannerText').innerText =
+                    `Tienes ${soon.length} orden${soon.length > 1 ? 'es' : ''} con la entrega en 2 días o menos. Toca para verla${soon.length > 1 ? 's' : ''}.`;
+                banner.classList.remove('hidden');
+            } else {
+                banner.classList.add('hidden');
+            }
+        }
+
         function renderOrders() {
             const grid = document.getElementById('ordersGrid');
             const emptyState = document.getElementById('emptyState');
             const search = document.getElementById('searchInput').value.toLowerCase();
             const statusFilter = document.getElementById('statusFilter').value;
+            const dateFilter = document.getElementById('dateFilter').value;
 
             document.getElementById('statTotal').innerText = orders.length;
             document.getElementById('statPending').innerText = orders.filter(o => o.status === 'Pendiente').length;
             document.getElementById('statCompleted').innerText = orders.filter(o => o.status === 'Completada').length;
             document.getElementById('statCanceled').innerText = orders.filter(o => o.status === 'Anulada').length;
+            checkUrgentBanner();
 
             let filtered = orders.filter(o => {
                 const matchesSearch = 
@@ -1295,8 +1380,9 @@
                     o.jobTitle.toLowerCase().includes(search);
                 
                 const matchesStatus = statusFilter === 'ALL' || o.status === statusFilter;
+                const matchesDate = !dateFilter || o.date === dateFilter || o.deliveryDate === dateFilter;
 
-                return matchesSearch && matchesStatus;
+                return matchesSearch && matchesStatus && matchesDate;
             });
 
             filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -1338,8 +1424,12 @@
 
                     <h3 class="text-base font-bold text-white mb-1 line-clamp-1">${escapeHtml(order.jobTitle)}</h3>
                     <p class="text-sm font-extrabold text-emerald-400 mb-3 flex items-center gap-1.5 justify-between">
-                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-user text-xs text-emerald-500"></i> ${escapeHtml(order.clientName)}</span>
-                        ${order.clientPhone ? `<a href="tel:${order.clientPhone.replace(/[^0-9+]/g, '')}" title="Llamar a ${escapeHtml(order.clientPhone)}" onclick="event.stopPropagation()" class="text-emerald-500 hover:text-emerald-300 bg-emerald-500/10 rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-phone text-xs"></i></a>` : ''}
+                        <span class="flex items-center gap-1.5 truncate"><i class="fa-solid fa-user text-xs text-emerald-500 flex-shrink-0"></i> <span class="truncate">${escapeHtml(order.clientName)}</span></span>
+                        <span class="flex items-center gap-1 flex-shrink-0">
+                            ${order.clientPhone ? `<a href="tel:${order.clientPhone.replace(/[^0-9+]/g, '')}" title="Llamar a ${escapeHtml(order.clientPhone)}" onclick="event.stopPropagation()" class="text-emerald-500 hover:text-emerald-300 bg-emerald-500/10 rounded-full w-7 h-7 flex items-center justify-center"><i class="fa-solid fa-phone text-xs"></i></a>` : ''}
+                            ${order.clientPhone ? `<a href="${buildWhatsAppLink(order.clientPhone)}" target="_blank" rel="noopener" title="WhatsApp a ${escapeHtml(order.clientPhone)}" onclick="event.stopPropagation()" class="text-emerald-500 hover:text-emerald-300 bg-emerald-500/10 rounded-full w-7 h-7 flex items-center justify-center"><i class="fa-brands fa-whatsapp text-sm"></i></a>` : ''}
+                            ${order.clientEmail ? `<a href="mailto:${order.clientEmail}" title="Email a ${escapeHtml(order.clientEmail)}" onclick="event.stopPropagation()" class="text-blue-400 hover:text-blue-300 bg-blue-500/10 rounded-full w-7 h-7 flex items-center justify-center"><i class="fa-solid fa-envelope text-xs"></i></a>` : ''}
+                        </span>
                     </p>
 
                     <div class="grid grid-cols-2 gap-2 text-xs text-slate-400 bg-slate-900/60 p-3 rounded-lg mb-4">
@@ -1365,15 +1455,18 @@
                             ${fileCount > 0 ? `<span class="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${fileCount}</span>` : ''}
                         </button>
                         ${order.invoiced
-                            ? `<span title="Ya facturada: ${escapeHtml(order.invoiceNum || '')}" class="px-2 sm:px-3 py-1.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 rounded text-xs font-bold flex items-center gap-1.5">
-                                <i class="fa-solid fa-circle-check"></i> <span class="hidden sm:inline">Facturada</span>
+                            ? `<span title="Ya cobrada: ${escapeHtml(order.invoiceNum || '')}" class="px-2 sm:px-3 py-1.5 bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 rounded text-xs font-bold flex items-center gap-1.5">
+                                <i class="fa-solid fa-circle-check"></i> <span class="hidden sm:inline">Cobrada</span>
                                </span>`
-                            : `<button onclick="generateInvoice('${order.id}')" title="Generar Factura" class="px-2 sm:px-3 py-1.5 bg-violet-700 hover:bg-violet-600 text-white rounded text-xs font-medium flex items-center gap-1.5 transition">
-                                <i class="fa-solid fa-file-invoice-dollar"></i> <span class="hidden sm:inline">Factura</span>
+                            : `<button onclick="generateInvoice('${order.id}')" title="Generar Cobro" class="px-2 sm:px-3 py-1.5 bg-violet-700 hover:bg-violet-600 text-white rounded text-xs font-medium flex items-center gap-1.5 transition">
+                                <i class="fa-solid fa-file-invoice-dollar"></i> <span class="hidden sm:inline">Cobrar</span>
                                </button>`}
                     </div>
                     <div class="flex-1"></div>
                     <div class="flex items-center gap-1 flex-shrink-0">
+                        ${order.deliveryDate ? `<button onclick="downloadICS('${order.id}', 'orders')" title="Añadir fecha de entrega al Calendario" class="p-1.5 text-slate-400 hover:text-sky-400 hover:bg-slate-700 rounded transition">
+                            <i class="fa-solid fa-calendar-plus"></i>
+                        </button>` : ''}
                         <button onclick="duplicateOrder('${order.id}')" title="Duplicar Orden" class="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-700 rounded transition">
                             <i class="fa-solid fa-copy"></i>
                         </button>
@@ -1405,9 +1498,22 @@
             const emptyState = document.getElementById('quotesEmptyState');
             const emptyTitle = document.getElementById('quotesEmptyTitle');
 
+            const searchEl = document.getElementById('quoteSearchInput');
+            const dateEl = document.getElementById('quoteDateFilter');
+            const search = searchEl ? searchEl.value.toLowerCase() : '';
+            const dateFilter = dateEl ? dateEl.value : '';
+
             grid.innerHTML = '';
             const filtered = quotes
                 .filter(q => q.status === currentQuoteFilter)
+                .filter(q => {
+                    const matchesSearch = !search ||
+                        (q.clientName && q.clientName.toLowerCase().includes(search)) ||
+                        (q.jobTitle && q.jobTitle.toLowerCase().includes(search)) ||
+                        (q.orderNum && q.orderNum.toLowerCase().includes(search));
+                    const matchesDate = !dateFilter || q.date === dateFilter || q.deliveryDate === dateFilter;
+                    return matchesSearch && matchesDate;
+                })
                 .sort((a, b) => new Date(a.date) - new Date(b.date)); // orden de llegada: más antiguo primero
 
             if (filtered.length === 0) {
@@ -1442,8 +1548,12 @@
 
                     <h3 class="text-base font-bold text-white mb-1 line-clamp-1">${escapeHtml(quote.jobTitle)}</h3>
                     <p class="text-sm font-extrabold text-emerald-400 mb-3 flex items-center gap-1.5 justify-between">
-                        <span class="flex items-center gap-1.5"><i class="fa-solid fa-user text-xs text-emerald-500"></i> ${escapeHtml(quote.clientName)}</span>
-                        ${quote.clientPhone ? `<a href="tel:${quote.clientPhone.replace(/[^0-9+]/g, '')}" title="Llamar a ${escapeHtml(quote.clientPhone)}" onclick="event.stopPropagation()" class="text-emerald-500 hover:text-emerald-300 bg-emerald-500/10 rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-phone text-xs"></i></a>` : ''}
+                        <span class="flex items-center gap-1.5 truncate"><i class="fa-solid fa-user text-xs text-emerald-500 flex-shrink-0"></i> <span class="truncate">${escapeHtml(quote.clientName)}</span></span>
+                        <span class="flex items-center gap-1 flex-shrink-0">
+                            ${quote.clientPhone ? `<a href="tel:${quote.clientPhone.replace(/[^0-9+]/g, '')}" title="Llamar a ${escapeHtml(quote.clientPhone)}" onclick="event.stopPropagation()" class="text-emerald-500 hover:text-emerald-300 bg-emerald-500/10 rounded-full w-7 h-7 flex items-center justify-center"><i class="fa-solid fa-phone text-xs"></i></a>` : ''}
+                            ${quote.clientPhone ? `<a href="${buildWhatsAppLink(quote.clientPhone)}" target="_blank" rel="noopener" title="WhatsApp a ${escapeHtml(quote.clientPhone)}" onclick="event.stopPropagation()" class="text-emerald-500 hover:text-emerald-300 bg-emerald-500/10 rounded-full w-7 h-7 flex items-center justify-center"><i class="fa-brands fa-whatsapp text-sm"></i></a>` : ''}
+                            ${quote.clientEmail ? `<a href="mailto:${quote.clientEmail}" title="Email a ${escapeHtml(quote.clientEmail)}" onclick="event.stopPropagation()" class="text-blue-400 hover:text-blue-300 bg-blue-500/10 rounded-full w-7 h-7 flex items-center justify-center"><i class="fa-solid fa-envelope text-xs"></i></a>` : ''}
+                        </span>
                     </p>
 
                     <div class="grid grid-cols-2 gap-2 text-xs text-slate-400 bg-slate-900/60 p-3 rounded-lg mb-4">
@@ -1467,6 +1577,9 @@
                             ${quoteFileCount > 0 ? `<span class="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">${quoteFileCount}</span>` : ''}
                         </button>
                         <div class="flex-1"></div>
+                        ${quote.deliveryDate ? `<button onclick="downloadICS('${quote.id}', 'quotes')" title="Añadir fecha de entrega al Calendario" class="p-1.5 text-slate-400 hover:text-sky-400 hover:bg-slate-700 rounded transition flex-shrink-0">
+                            <i class="fa-solid fa-calendar-plus"></i>
+                        </button>` : ''}
                         <button onclick="duplicateQuote('${quote.id}')" title="Duplicar Presupuesto" class="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-700 rounded transition flex-shrink-0">
                             <i class="fa-solid fa-copy"></i>
                         </button>
@@ -2259,8 +2372,8 @@
             const subtitleEl = document.getElementById('printDocSubtitle');
             const ivaBlock = document.getElementById('printIvaBlock');
             if (source === 'invoices') {
-                titleEl.innerText = 'FACTURA';
-                subtitleEl.innerText = order.sourceOrderNum ? 'Ref. orden de trabajo: ' + order.sourceOrderNum : 'Documento de facturación';
+                titleEl.innerText = 'RESUMEN DE COBRO';
+                subtitleEl.innerText = order.sourceOrderNum ? 'Ref. orden de trabajo: ' + order.sourceOrderNum : 'Documento de cobro';
                 const ivaPercent = parseFloat(order.ivaPercent) || 0;
                 const ivaAmount = total * (ivaPercent / 100);
                 ivaBlock.classList.remove('hidden');
@@ -2624,6 +2737,68 @@
                 return `${parts[2]}/${parts[1]}/${parts[0]}`;
             }
             return dateStr;
+        }
+
+        // Genera un archivo .ics para añadir la fecha de entrega al Calendario del móvil, con recordatorio
+        function downloadICS(id, source) {
+            const list = source === 'quotes' ? quotes : orders;
+            const order = list.find(o => o.id === id);
+            if (!order || !order.deliveryDate) {
+                alert('Esta orden no tiene fecha de entrega puesta.');
+                return;
+            }
+
+            const daysInput = prompt('¿Cuántos días antes quieres el aviso?', '2');
+            if (daysInput === null) return;
+            const daysBefore = parseInt(daysInput) || 0;
+
+            const dateStr = order.deliveryDate.replace(/-/g, '');
+            const uid = 'ordenpro-' + order.id + '@ordenpro';
+            const stamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+            const summary = `Entrega: ${order.jobTitle || order.orderNum} — ${order.clientName || ''}`;
+            const description = `Orden ${order.orderNum}. Cliente: ${order.clientName || ''}. Tel: ${order.clientPhone || '-'}.`;
+
+            const lines = [
+                'BEGIN:VCALENDAR',
+                'VERSION:2.0',
+                'PRODID:-//OrdenPro//ES',
+                'BEGIN:VEVENT',
+                'UID:' + uid,
+                'DTSTAMP:' + stamp,
+                'DTSTART;VALUE=DATE:' + dateStr,
+                'DTEND;VALUE=DATE:' + dateStr,
+                'SUMMARY:' + summary.replace(/,/g, '\\,'),
+                'DESCRIPTION:' + description.replace(/,/g, '\\,'),
+            ];
+            if (daysBefore >= 0) {
+                lines.push(
+                    'BEGIN:VALARM',
+                    'TRIGGER:-P' + daysBefore + 'D',
+                    'ACTION:DISPLAY',
+                    'DESCRIPTION:Recordatorio de entrega',
+                    'END:VALARM'
+                );
+            }
+            lines.push('END:VEVENT', 'END:VCALENDAR');
+
+            const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Entrega_${order.orderNum}.ics`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        // Construye el enlace de WhatsApp a partir de un teléfono. Si no lleva prefijo de país
+        // (número español típico de 9 dígitos), se le añade el 34 automáticamente.
+        function buildWhatsAppLink(phone) {
+            if (!phone) return '#';
+            let digits = phone.replace(/[^0-9]/g, '');
+            if (digits.length <= 9) digits = '34' + digits;
+            return `https://wa.me/${digits}`;
         }
 
         function escapeHtml(str) {

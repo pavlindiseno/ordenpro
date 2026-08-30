@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ordenpro-cache-v20';
+const CACHE_NAME = 'ordenpro-cache-v21';
 
 // Archivos propios de la app: SIEMPRE deben poder cachearse (están en el mismo sitio)
 const LOCAL_ASSETS = [
