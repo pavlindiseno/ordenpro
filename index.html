@@ -105,6 +105,17 @@
             color: #ffffff;
             border-color: #64748b;
         }
+        /* Etiquetas de los campos del formulario (Cliente, Teléfono, etc.):
+           mismo tamaño, sin negrita, y en un tono que se diferencia del valor escrito debajo */
+        #orderForm label {
+            font-weight: 400 !important;
+            color: #7dd3fc !important;
+        }
+        .period-btn.active {
+            background-color: #7c3aed !important;
+            color: #ffffff !important;
+            border-color: #a78bfa !important;
+        }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
@@ -152,17 +163,17 @@
         </div>
 
         <!-- Pestañas Órdenes / Presupuestos / Urgentes / Cobrado -->
-        <div class="max-w-7xl mx-auto px-4 pb-2 grid grid-cols-2 sm:flex gap-1.5 sm:gap-2">
-            <button id="tabOrdersBtn" onclick="switchView('orders')" class="view-tab px-1 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition flex flex-row items-center justify-center gap-1 sm:gap-1.5">
+        <div class="max-w-7xl mx-auto px-2 sm:px-4 pb-2 grid grid-cols-4 gap-1 sm:gap-2">
+            <button id="tabOrdersBtn" onclick="switchView('orders')" class="view-tab px-0.5 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-sm font-medium transition flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5">
                 <i class="fa-solid fa-clipboard-list"></i> <span>Órdenes</span>
             </button>
-            <button id="tabUrgentBtn" onclick="switchView('urgent')" class="view-tab px-1 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition flex flex-row items-center justify-center gap-1 sm:gap-1.5">
+            <button id="tabUrgentBtn" onclick="switchView('urgent')" class="view-tab px-0.5 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-sm font-medium transition flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5">
                 <i class="fa-solid fa-truck-fast text-amber-400"></i> <span>Urgentes</span>
             </button>
-            <button id="tabQuotesBtn" onclick="switchView('quotes')" class="view-tab px-1 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition flex flex-row items-center justify-center gap-1 sm:gap-1.5">
+            <button id="tabQuotesBtn" onclick="switchView('quotes')" class="view-tab px-0.5 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-sm font-medium transition flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5">
                 <i class="fa-solid fa-file-pen"></i> <span>Presup.</span>
             </button>
-            <button id="tabInvoicesBtn" onclick="switchView('invoices')" class="view-tab px-1 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition flex flex-row items-center justify-center gap-1 sm:gap-1.5">
+            <button id="tabInvoicesBtn" onclick="switchView('invoices')" class="view-tab px-0.5 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-sm font-medium transition flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5">
                 <i class="fa-solid fa-file-invoice-dollar"></i> <span>Cobrado</span>
             </button>
         </div>
@@ -330,17 +341,33 @@
 
         <!-- SECCIÓN COBRADO (FACTURAS) -->
         <div id="invoicesSection" class="hidden">
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col md:flex-row gap-3 justify-between items-center mb-4">
-            <div class="relative w-full md:w-72">
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-4">
+            <div class="relative w-full mb-3">
                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
                 <input type="text" id="invoiceSearchInput" oninput="renderInvoices()" placeholder="Buscar por cliente o trabajo..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-violet-500">
             </div>
-            <div class="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
-                <label class="text-xs text-slate-400 font-medium">Fecha:</label>
-                <input type="date" id="invoiceDateFilter" onchange="renderInvoices()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-violet-500">
-                <button onclick="document.getElementById('invoiceDateFilter').value=''; renderInvoices();" title="Quitar filtro de fecha" class="text-slate-400 hover:text-rose-400 text-xs px-1">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+
+            <label class="text-xs text-slate-400 font-medium block mb-1.5">Periodo</label>
+            <div class="flex flex-wrap gap-1.5 mb-3">
+                <button onclick="setInvoicePeriod('month')" id="periodBtn-month" class="period-btn text-xs px-3 py-1.5 rounded-lg font-medium border border-slate-700 bg-slate-900 text-slate-300 hover:border-violet-500">Este mes</button>
+                <button onclick="setInvoicePeriod('last30')" id="periodBtn-last30" class="period-btn text-xs px-3 py-1.5 rounded-lg font-medium border border-slate-700 bg-slate-900 text-slate-300 hover:border-violet-500">Últimos 30 días</button>
+                <button onclick="setInvoicePeriod('quarter')" id="periodBtn-quarter" class="period-btn text-xs px-3 py-1.5 rounded-lg font-medium border border-slate-700 bg-slate-900 text-slate-300 hover:border-violet-500">Últimos 3 meses</button>
+                <button onclick="setInvoicePeriod('year')" id="periodBtn-year" class="period-btn text-xs px-3 py-1.5 rounded-lg font-medium border border-slate-700 bg-slate-900 text-slate-300 hover:border-violet-500">Este año</button>
+                <button onclick="setInvoicePeriod('all')" id="periodBtn-all" class="period-btn text-xs px-3 py-1.5 rounded-lg font-medium border border-slate-700 bg-slate-900 text-slate-300 hover:border-violet-500">Todo</button>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <label class="text-xs text-slate-400 font-medium">Desde:</label>
+                <input type="date" id="invoiceDateFrom" onchange="setInvoicePeriod('custom')" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-violet-500">
+                <label class="text-xs text-slate-400 font-medium">Hasta:</label>
+                <input type="date" id="invoiceDateTo" onchange="setInvoicePeriod('custom')" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-violet-500">
+            </div>
+
+            <div class="mt-4 bg-violet-500/10 border border-violet-500/30 rounded-xl p-4 flex items-center justify-between flex-wrap gap-2">
+                <div>
+                    <p class="text-xs text-slate-400">Total cobrado en el periodo (<span id="periodCount">0</span> cobros)</p>
+                    <p id="periodTotal" class="text-2xl font-black text-violet-300">0.00 €</p>
+                </div>
+                <i class="fa-solid fa-sack-dollar text-3xl text-violet-400"></i>
             </div>
         </div>
         <div id="invoicesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -348,7 +375,7 @@
         </div>
         <div id="invoicesEmptyState" class="hidden text-center py-12 bg-slate-800/50 border border-slate-700 border-dashed rounded-xl">
             <i class="fa-solid fa-file-invoice-dollar text-4xl text-slate-500 mb-3"></i>
-            <h3 class="text-lg font-semibold text-slate-300">No hay cobros generados</h3>
+            <h3 class="text-lg font-semibold text-slate-300">No hay cobros en este periodo</h3>
             <p class="text-sm text-slate-400">Genera un cobro desde una orden ya completada, con el botón "Cobrar" de su tarjeta.</p>
         </div>
         </div>
@@ -988,6 +1015,7 @@
             document.getElementById('tabInvoicesBtn').classList.toggle('active', view === 'invoices');
             if (view === 'urgent') renderUrgent();
             if (view === 'quotes') switchQuoteFilter(currentQuoteFilter);
+            if (view === 'invoices') setInvoicePeriod(currentInvoicePeriod);
         }
 
         // ---- Pestaña "Más Urgentes": pendientes con fecha de entrega, de más cercana a más lejana ----
@@ -1148,15 +1176,52 @@
         }
 
         // ---- Tarjetas y render de Facturas ----
+        // ---- Filtro por periodo de tiempo en Cobrado ----
+        let currentInvoicePeriod = 'month';
+
+        function setInvoicePeriod(period) {
+            currentInvoicePeriod = period;
+            document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.getElementById('periodBtn-' + period);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            const today = new Date();
+            const fromEl = document.getElementById('invoiceDateFrom');
+            const toEl = document.getElementById('invoiceDateTo');
+            const toStr = (d) => d.toISOString().slice(0, 10);
+
+            if (period === 'month') {
+                fromEl.value = toStr(new Date(today.getFullYear(), today.getMonth(), 1));
+                toEl.value = toStr(today);
+            } else if (period === 'last30') {
+                fromEl.value = toStr(new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000));
+                toEl.value = toStr(today);
+            } else if (period === 'quarter') {
+                fromEl.value = toStr(new Date(today.getFullYear(), today.getMonth() - 3, today.getDate()));
+                toEl.value = toStr(today);
+            } else if (period === 'year') {
+                fromEl.value = toStr(new Date(today.getFullYear(), 0, 1));
+                toEl.value = toStr(today);
+            } else if (period === 'all') {
+                fromEl.value = '';
+                toEl.value = '';
+            }
+            // 'custom' no toca las fechas, ya las ha puesto el usuario a mano
+
+            renderInvoices();
+        }
+
         function renderInvoices() {
             const grid = document.getElementById('invoicesGrid');
             const emptyState = document.getElementById('invoicesEmptyState');
             if (!grid) return;
 
             const searchEl = document.getElementById('invoiceSearchInput');
-            const dateEl = document.getElementById('invoiceDateFilter');
+            const fromEl = document.getElementById('invoiceDateFrom');
+            const toEl = document.getElementById('invoiceDateTo');
             const search = searchEl ? searchEl.value.toLowerCase() : '';
-            const dateFilter = dateEl ? dateEl.value : '';
+            const fromDate = fromEl ? fromEl.value : '';
+            const toDate = toEl ? toEl.value : '';
 
             grid.innerHTML = '';
             const filtered = invoices.filter(inv => {
@@ -1164,10 +1229,23 @@
                     (inv.clientName && inv.clientName.toLowerCase().includes(search)) ||
                     (inv.jobTitle && inv.jobTitle.toLowerCase().includes(search)) ||
                     (inv.orderNum && inv.orderNum.toLowerCase().includes(search));
-                const matchesDate = !dateFilter || inv.date === dateFilter;
-                return matchesSearch && matchesDate;
+                const matchesFrom = !fromDate || inv.date >= fromDate;
+                const matchesTo = !toDate || inv.date <= toDate;
+                return matchesSearch && matchesFrom && matchesTo;
             });
             const sorted = filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            // Total cobrado (con IVA) en el periodo filtrado
+            let periodSum = 0;
+            sorted.forEach(inv => {
+                const base = calculateCosts(getCostValuesFromOrder(inv)).total;
+                const iva = parseFloat(inv.ivaPercent) || 0;
+                periodSum += base * (1 + iva / 100);
+            });
+            const periodTotalEl = document.getElementById('periodTotal');
+            const periodCountEl = document.getElementById('periodCount');
+            if (periodTotalEl) periodTotalEl.innerText = periodSum.toFixed(2) + ' €';
+            if (periodCountEl) periodCountEl.innerText = sorted.length;
 
             if (sorted.length === 0) {
                 emptyState.classList.remove('hidden');
@@ -1177,6 +1255,27 @@
             }
         }
 
+        // Regenera una orden de trabajo a partir de los datos guardados en un cobro
+        // (útil si la orden original se borró por error, pero el cobro sigue existiendo)
+        function regenerateOrderFromInvoice(invoiceId) {
+            const invoice = invoices.find(i => i.id === invoiceId);
+            if (!invoice) return;
+            if (!confirm(`¿Crear una nueva orden de trabajo con los datos del cobro ${invoice.orderNum}?`)) return;
+
+            const nextNum = getNextNumber(orders, 'OT');
+            const newOrder = JSON.parse(JSON.stringify(invoice));
+            newOrder.id = 'ord_' + Date.now();
+            newOrder.orderNum = formatNumber(nextNum, 'OT');
+            newOrder.status = 'Completada';
+            newOrder.invoiced = true;
+            newOrder.invoiceNum = invoice.orderNum;
+
+            orders.push(newOrder);
+            saveOrders();
+            switchView('orders');
+            alert(`Se ha regenerado la orden ${newOrder.orderNum} a partir del cobro.`);
+        }
+
         function createInvoiceCard(invoice) {
             const card = document.createElement('div');
             card.className = "bg-slate-800 border border-violet-700/40 rounded-xl p-5 hover:border-violet-500 transition shadow-lg flex flex-col justify-between";
@@ -1184,6 +1283,7 @@
             const base = calculateCosts(getCostValuesFromOrder(invoice)).total;
             const ivaPercent = parseFloat(invoice.ivaPercent) || 0;
             const grandTotal = base * (1 + ivaPercent / 100);
+            const orderStillExists = orders.some(o => o.invoiceNum === invoice.orderNum);
 
             card.innerHTML = `
                 <div>
@@ -1201,10 +1301,15 @@
                         <div class="col-span-2 border-t border-slate-700/60 pt-2 mt-1 flex justify-between items-center"><span class="text-slate-500">Total con IVA:</span> <strong class="text-emerald-400 text-sm">${grandTotal.toFixed(2)} €</strong></div>
                     </div>
                 </div>
-                <div class="flex items-center justify-between pt-3 border-t border-slate-700/80 gap-2">
-                    <button onclick="printOrder('${invoice.id}', 'invoices')" title="Ver / Imprimir Cobro" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs font-medium flex items-center gap-1.5 transition">
-                        <i class="fa-solid fa-print text-blue-400"></i> Ver A4
-                    </button>
+                <div class="flex items-center justify-between pt-3 border-t border-slate-700/80 gap-2 flex-wrap">
+                    <div class="flex items-center gap-2">
+                        <button onclick="printOrder('${invoice.id}', 'invoices')" title="Ver / Imprimir Cobro" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs font-medium flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-print text-blue-400"></i> Ver A4
+                        </button>
+                        ${!orderStillExists ? `<button onclick="regenerateOrderFromInvoice('${invoice.id}')" title="Regenerar la orden de trabajo a partir de este cobro" class="px-3 py-1.5 bg-sky-700 hover:bg-sky-600 text-white rounded text-xs font-medium flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-arrow-rotate-left"></i> Regenerar Orden
+                        </button>` : ''}
+                    </div>
                     <button onclick="deleteInvoice('${invoice.id}')" title="Eliminar" class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-700 rounded transition">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
@@ -1415,11 +1520,17 @@
 
             card.innerHTML = `
                 <div>
-                    <div class="flex justify-between items-start mb-3">
+                    <div class="flex justify-between items-start mb-3 gap-2">
                         <span class="text-lg font-bold text-blue-400 font-mono tracking-wide">${order.orderNum}</span>
-                        <span class="text-xs px-2.5 py-1 rounded-full font-semibold border ${badgeColor}">
-                            ${order.status}
-                        </span>
+                        <div class="flex items-center gap-1.5">
+                            ${order.invoiced ? `<span title="Ya cobrada: ${escapeHtml(order.invoiceNum || '')}" class="text-[10px] px-2 py-1 rounded-full font-bold border bg-violet-500/10 text-violet-300 border-violet-500/30 flex items-center gap-1"><i class="fa-solid fa-sack-dollar"></i> Cobrada</span>` : ''}
+                            <select onchange="quickChangeStatus('${order.id}', this.value)" onclick="event.stopPropagation()" class="text-xs px-2 py-1 rounded-full font-semibold border ${badgeColor} bg-slate-800">
+                                <option value="Pendiente" ${order.status === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
+                                <option value="En Proceso" ${order.status === 'En Proceso' ? 'selected' : ''}>En Proceso</option>
+                                <option value="Completada" ${order.status === 'Completada' ? 'selected' : ''}>Completada</option>
+                                <option value="Anulada" ${order.status === 'Anulada' ? 'selected' : ''}>Anulada</option>
+                            </select>
+                        </div>
                     </div>
 
                     <h3 class="text-base font-bold text-white mb-1 line-clamp-1">${escapeHtml(order.jobTitle)}</h3>
@@ -1670,8 +1781,8 @@
             updateFormLayoutForType(formType);
 
             const topSaveBtn = document.getElementById('topSaveBtn');
-            topSaveBtn.classList.toggle('hidden', mode !== 'edit');
-            topSaveBtn.classList.toggle('flex', mode === 'edit');
+            topSaveBtn.classList.remove('hidden');
+            topSaveBtn.classList.add('flex');
 
             if (mode === 'new') {
                 if (formType === 'quote') {
@@ -2304,6 +2415,14 @@
             fillFormFromExisting(original);
         }
 
+        // Cambia el estado de una orden directamente desde la tarjeta, sin abrir el formulario
+        function quickChangeStatus(id, newStatus) {
+            const order = orders.find(o => o.id === id);
+            if (!order) return;
+            order.status = newStatus;
+            saveOrders();
+        }
+
         function deleteOrder(id) {
             if (confirm('¿Estás seguro de que deseas eliminar esta orden de trabajo?')) {
                 orders = orders.filter(o => o.id !== id);
@@ -2581,6 +2700,21 @@
             });
         }
 
+        // Descarga una copia de la foto al propio dispositivo (además de guardarla en la app),
+        // para que también quede en la carpeta de Descargas / galería del móvil
+        function saveToDeviceGallery(dataUrl, filename) {
+            try {
+                const a = document.createElement('a');
+                a.href = dataUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } catch (err) {
+                console.warn('No se pudo guardar la foto en el dispositivo:', err);
+            }
+        }
+
         async function handlePhotoAdd(type, event) {
             const files = Array.from(event.target.files || []);
             if (files.length === 0) return;
@@ -2591,6 +2725,7 @@
             if (!order.photosBefore) order.photosBefore = [];
             if (!order.photosAfter) order.photosAfter = [];
 
+            let count = 0;
             for (const file of files) {
                 try {
                     const compressed = await compressImage(file);
@@ -2599,6 +2734,9 @@
                     } else {
                         order.photosAfter.push(compressed);
                     }
+                    count++;
+                    const label = type === 'before' ? 'antes' : 'despues';
+                    saveToDeviceGallery(compressed, `OrdenPro_${order.orderNum}_${label}_${count}.jpg`);
                 } catch (err) {
                     console.warn('No se pudo procesar una foto:', err);
                 }
