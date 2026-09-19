@@ -155,10 +155,6 @@
                     <i class="fa-solid fa-plus"></i>
                     <span>Órden</span>
                 </button>
-                <button onclick="switchView('invoices')" class="bg-violet-600 hover:bg-violet-500 text-white font-medium px-2.5 py-1.5 rounded-lg flex items-center space-x-1.5 transition shadow text-xs sm:text-sm">
-                    <i class="fa-solid fa-file-invoice-dollar"></i>
-                    <span>Cobrado</span>
-                </button>
             </div>
         </div>
 
@@ -226,6 +222,7 @@
                     <option value="En Proceso">En Proceso</option>
                     <option value="Completada">Completada</option>
                     <option value="Anulada">Anulada</option>
+                    <option value="INVOICED">Cobrada</option>
                 </select>
             </div>
         </div>
@@ -255,12 +252,12 @@
                 </div>
                 <i class="fa-solid fa-check-circle text-2xl text-emerald-400"></i>
             </button>
-            <button onclick="filterByStat('Anulada')" class="bg-slate-800 p-4 rounded-xl border border-slate-700 hover:border-rose-500 transition flex items-center justify-between text-left">
+            <button onclick="filterByStat('INVOICED')" class="bg-slate-800 p-4 rounded-xl border border-slate-700 hover:border-violet-500 transition flex items-center justify-between text-left">
                 <div>
-                    <p class="text-xs text-slate-400">Anuladas</p>
-                    <p id="statCanceled" class="text-2xl font-bold text-rose-400">0</p>
+                    <p class="text-xs text-slate-400">Cobradas</p>
+                    <p id="statInvoiced" class="text-2xl font-bold text-violet-400">0</p>
                 </div>
-                <i class="fa-solid fa-ban text-2xl text-rose-400"></i>
+                <i class="fa-solid fa-sack-dollar text-2xl text-violet-400"></i>
             </button>
         </div>
 
@@ -1188,7 +1185,10 @@
             const today = new Date();
             const fromEl = document.getElementById('invoiceDateFrom');
             const toEl = document.getElementById('invoiceDateTo');
-            const toStr = (d) => d.toISOString().slice(0, 10);
+            const pad2 = (n) => String(n).padStart(2, '0');
+            // OJO: usar componentes de fecha LOCAL (no toISOString, que convierte a UTC
+            // y puede restar un día según la zona horaria del dispositivo)
+            const toStr = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
             if (period === 'month') {
                 fromEl.value = toStr(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -1223,24 +1223,35 @@
             const fromDate = fromEl ? fromEl.value : '';
             const toDate = toEl ? toEl.value : '';
 
+            // Se queda solo con la parte AAAA-MM-DD, por si algún cobro antiguo
+            // guardó la fecha con hora incluida (evita que la comparación falle)
+            const dateOnly = (str) => str ? String(str).slice(0, 10) : '';
+
             grid.innerHTML = '';
             const filtered = invoices.filter(inv => {
                 const matchesSearch = !search ||
                     (inv.clientName && inv.clientName.toLowerCase().includes(search)) ||
                     (inv.jobTitle && inv.jobTitle.toLowerCase().includes(search)) ||
                     (inv.orderNum && inv.orderNum.toLowerCase().includes(search));
-                const matchesFrom = !fromDate || inv.date >= fromDate;
-                const matchesTo = !toDate || inv.date <= toDate;
+                const invDate = dateOnly(inv.date);
+                const matchesFrom = !fromDate || !invDate || invDate >= fromDate;
+                const matchesTo = !toDate || !invDate || invDate <= toDate;
                 return matchesSearch && matchesFrom && matchesTo;
             });
             const sorted = filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            // Total cobrado (con IVA) en el periodo filtrado
+            // Total cobrado (con IVA) en el periodo filtrado.
+            // Cada cobro se calcula en su propio try/catch: si uno tuviera datos
+            // incompletos, no debe hacer desaparecer ni el total ni el resto de la lista.
             let periodSum = 0;
             sorted.forEach(inv => {
-                const base = calculateCosts(getCostValuesFromOrder(inv)).total;
-                const iva = parseFloat(inv.ivaPercent) || 0;
-                periodSum += base * (1 + iva / 100);
+                try {
+                    const base = calculateCosts(getCostValuesFromOrder(inv)).total;
+                    const iva = parseFloat(inv.ivaPercent) || 0;
+                    periodSum += base * (1 + iva / 100);
+                } catch (e) {
+                    console.warn('No se pudo calcular el importe de un cobro:', inv && inv.id, e);
+                }
             });
             const periodTotalEl = document.getElementById('periodTotal');
             const periodCountEl = document.getElementById('periodCount');
@@ -1251,7 +1262,13 @@
                 emptyState.classList.remove('hidden');
             } else {
                 emptyState.classList.add('hidden');
-                sorted.forEach(inv => grid.appendChild(createInvoiceCard(inv)));
+                sorted.forEach(inv => {
+                    try {
+                        grid.appendChild(createInvoiceCard(inv));
+                    } catch (e) {
+                        console.warn('No se pudo mostrar un cobro:', inv && inv.id, e);
+                    }
+                });
             }
         }
 
@@ -1474,7 +1491,7 @@
             document.getElementById('statTotal').innerText = orders.length;
             document.getElementById('statPending').innerText = orders.filter(o => o.status === 'Pendiente').length;
             document.getElementById('statCompleted').innerText = orders.filter(o => o.status === 'Completada').length;
-            document.getElementById('statCanceled').innerText = orders.filter(o => o.status === 'Anulada').length;
+            document.getElementById('statInvoiced').innerText = orders.filter(o => o.invoiced === true).length;
             checkUrgentBanner();
 
             let filtered = orders.filter(o => {
@@ -1484,7 +1501,7 @@
                     (o.clientCif && o.clientCif.toLowerCase().includes(search)) ||
                     o.jobTitle.toLowerCase().includes(search);
                 
-                const matchesStatus = statusFilter === 'ALL' || o.status === statusFilter;
+                const matchesStatus = statusFilter === 'ALL' || (statusFilter === 'INVOICED' ? o.invoiced === true : o.status === statusFilter);
                 const matchesDate = !dateFilter || o.date === dateFilter || o.deliveryDate === dateFilter;
 
                 return matchesSearch && matchesStatus && matchesDate;
