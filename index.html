@@ -201,6 +201,9 @@
                     </p>
                 </div>
             </div>
+            <button onclick="dismissInstallBanner()" title="No volver a mostrar" class="self-start md:self-center text-slate-400 hover:text-white p-1 rounded transition flex-shrink-0">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
         </div>
 
         <!-- Barra de Búsqueda y Filtros -->
@@ -991,6 +994,7 @@
             loadOrders();
             loadQuotes();
             loadInvoices();
+            backfillMissingInvoices();
             renderOrders();
             renderQuotes();
             renderInvoices();
@@ -998,6 +1002,40 @@
             setupInstallUI();
             switchView('orders');
         });
+
+        // Migración de compatibilidad: alguna orden puede haber quedado marcada como
+        // "Cobrada" (invoiced = true) sin tener un registro en el listado de Cobrado
+        // (por ejemplo, órdenes cobradas con una versión anterior de la app). Sin este
+        // registro no podían aparecer en la pestaña de Cobrado ni quitárseles el check.
+        // Aquí se les genera el registro que les falta, usando los datos que ya tiene
+        // la propia orden, para que queden visibles y gestionables en Cobrado.
+        function backfillMissingInvoices() {
+            let changed = false;
+            orders.forEach(order => {
+                if (!order.invoiced) return;
+                const hasInvoice = invoices.some(inv =>
+                    inv.sourceOrderNum === order.orderNum ||
+                    (order.invoiceNum && inv.orderNum === order.invoiceNum)
+                );
+                if (hasInvoice) return;
+
+                const nextNum = getNextNumber(invoices, 'FAC');
+                const invoiceData = JSON.parse(JSON.stringify(order));
+                invoiceData.id = 'inv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+                invoiceData.orderNum = order.invoiceNum || formatNumber(nextNum, 'FAC');
+                invoiceData.date = order.deliveryDate || order.date || new Date().toISOString().slice(0, 10);
+                invoiceData.ivaPercent = typeof order.ivaPercent === 'number' ? order.ivaPercent : 0;
+                invoiceData.sourceOrderNum = order.orderNum;
+
+                invoices.push(invoiceData);
+                if (!order.invoiceNum) order.invoiceNum = invoiceData.orderNum;
+                changed = true;
+            });
+            if (changed) {
+                localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+            }
+        }
 
         // ---- Cambiar entre vista de Órdenes / Urgentes / Presupuestos / Facturas ----
         function switchView(view) {
@@ -1059,6 +1097,11 @@
                 return;
             }
 
+            // Si el usuario ya cerró el aviso antes, no se vuelve a mostrar
+            if (localStorage.getItem('installBannerDismissed') === '1') {
+                banner.classList.add('hidden');
+            }
+
             const isIOS = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
             if (isIOS) {
                 document.getElementById('installInstructions').innerText =
@@ -1077,6 +1120,13 @@
                 banner.classList.add('hidden');
                 deferredInstallPrompt = null;
             });
+        }
+
+        // Cierra el aviso de instalación manualmente y recuerda que no hay que
+        // volver a mostrarlo (hasta que se borren datos del navegador)
+        function dismissInstallBanner() {
+            localStorage.setItem('installBannerDismissed', '1');
+            document.getElementById('installBanner').classList.add('hidden');
         }
 
         function installApp() {
