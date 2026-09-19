@@ -1009,15 +1009,44 @@
         // registro no podían aparecer en la pestaña de Cobrado ni quitárseles el check.
         // Aquí se les genera el registro que les falta, usando los datos que ya tiene
         // la propia orden, para que queden visibles y gestionables en Cobrado.
+        //
+        // OJO: el Nº de orden (orderNum) se reutiliza cuando se anula una orden
+        // ("Anulada (Libera Nº)"), así que NO es un identificador fiable a largo
+        // plazo para vincular un cobro con su orden — dos órdenes distintas pueden
+        // haber tenido el mismo número en momentos distintos. Por eso, la vinculación
+        // real se hace por order.id (sourceOrderId), que es único y no se reutiliza
+        // nunca; el número de orden solo se usa como pista para emparejar cobros
+        // antiguos que aún no tengan ese vínculo guardado.
         function backfillMissingInvoices() {
             let changed = false;
+            const claimedOrderIds = new Set();
+
+            // Fase 1: a los cobros que ya existen pero no tienen todavía sourceOrderId,
+            // se lo asignamos emparejándolos por número de orden. Cada orden solo puede
+            // "reclamarse" una vez, para que un número reutilizado no confunda a dos
+            // órdenes distintas entre sí.
+            invoices.forEach(inv => {
+                if (inv.sourceOrderId) {
+                    claimedOrderIds.add(inv.sourceOrderId);
+                    return;
+                }
+                const candidate = orders.find(o =>
+                    !claimedOrderIds.has(o.id) &&
+                    o.invoiced === true &&
+                    (o.orderNum === inv.sourceOrderNum || o.invoiceNum === inv.orderNum)
+                );
+                if (candidate) {
+                    inv.sourceOrderId = candidate.id;
+                    claimedOrderIds.add(candidate.id);
+                    changed = true;
+                }
+            });
+
+            // Fase 2: cualquier orden marcada como cobrada que, tras lo anterior, siga
+            // sin tener un cobro vinculado, se le genera uno nuevo con sus propios datos.
             orders.forEach(order => {
                 if (!order.invoiced) return;
-                const hasInvoice = invoices.some(inv =>
-                    inv.sourceOrderNum === order.orderNum ||
-                    (order.invoiceNum && inv.orderNum === order.invoiceNum)
-                );
-                if (hasInvoice) return;
+                if (claimedOrderIds.has(order.id)) return;
 
                 const nextNum = getNextNumber(invoices, 'FAC');
                 const invoiceData = JSON.parse(JSON.stringify(order));
@@ -1025,12 +1054,15 @@
                 invoiceData.orderNum = order.invoiceNum || formatNumber(nextNum, 'FAC');
                 invoiceData.date = order.deliveryDate || order.date || new Date().toISOString().slice(0, 10);
                 invoiceData.ivaPercent = typeof order.ivaPercent === 'number' ? order.ivaPercent : 0;
+                invoiceData.sourceOrderId = order.id;
                 invoiceData.sourceOrderNum = order.orderNum;
 
                 invoices.push(invoiceData);
+                claimedOrderIds.add(order.id);
                 if (!order.invoiceNum) order.invoiceNum = invoiceData.orderNum;
                 changed = true;
             });
+
             if (changed) {
                 localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
@@ -1339,6 +1371,13 @@
 
             orders.push(newOrder);
             saveOrders();
+
+            // Vincula el cobro a la orden recién regenerada, para que "Quitar cobro"
+            // siga funcionando correctamente sobre ella
+            invoice.sourceOrderId = newOrder.id;
+            invoice.sourceOrderNum = newOrder.orderNum;
+            saveInvoices();
+
             switchView('orders');
             alert(`Se ha regenerado la orden ${newOrder.orderNum} a partir del cobro.`);
         }
@@ -1350,7 +1389,9 @@
             const base = calculateCosts(getCostValuesFromOrder(invoice)).total;
             const ivaPercent = parseFloat(invoice.ivaPercent) || 0;
             const grandTotal = base * (1 + ivaPercent / 100);
-            const orderStillExists = orders.some(o => o.invoiceNum === invoice.orderNum);
+            const orderStillExists = invoice.sourceOrderId
+                ? orders.some(o => o.id === invoice.sourceOrderId)
+                : orders.some(o => o.invoiceNum === invoice.orderNum);
 
             card.innerHTML = `
                 <div>
@@ -1394,9 +1435,13 @@
             saveInvoices();
 
             // Revierte el check de "Cobrada" en la orden original (si sigue existiendo),
-            // sin tocar su estado (Pendiente/En Proceso/Completada/Anulada) ni anularla
-            if (invoice.sourceOrderNum) {
-                const order = orders.find(o => o.orderNum === invoice.sourceOrderNum);
+            // sin tocar su estado (Pendiente/En Proceso/Completada/Anulada) ni anularla.
+            // Se busca primero por id (estable) y solo por número como respaldo, ya que
+            // el número de orden puede haberse reutilizado tras anular otra orden.
+            if (invoice.sourceOrderId || invoice.sourceOrderNum) {
+                const order = invoice.sourceOrderId
+                    ? orders.find(o => o.id === invoice.sourceOrderId)
+                    : orders.find(o => o.orderNum === invoice.sourceOrderNum);
                 if (order) {
                     order.invoiced = false;
                     order.invoiceNum = '';
@@ -1425,6 +1470,7 @@
             invoiceData.orderNum = formatNumber(nextNum, 'FAC');
             invoiceData.date = new Date().toISOString().slice(0, 10);
             invoiceData.ivaPercent = ivaPercent;
+            invoiceData.sourceOrderId = order.id;
             invoiceData.sourceOrderNum = order.orderNum;
 
             invoices.push(invoiceData);
