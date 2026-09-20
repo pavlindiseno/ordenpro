@@ -226,6 +226,7 @@
                     <option value="Completada">Completada</option>
                     <option value="Anulada">Anulada</option>
                     <option value="INVOICED">Cobrada</option>
+                    <option value="NOT_INVOICED">No cobrada</option>
                 </select>
             </div>
         </div>
@@ -233,34 +234,43 @@
         <!-- SECCIÓN ÓRDENES -->
         <div id="ordersSection">
         <!-- Tarjetas de Estadísticas -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <button onclick="filterByStat('ALL')" class="bg-slate-800 p-4 rounded-xl border border-slate-700 hover:border-blue-500 transition flex items-center justify-between text-left">
-                <div>
-                    <p class="text-xs text-slate-400">Total Órdenes</p>
-                    <p id="statTotal" class="text-2xl font-bold text-white">0</p>
-                </div>
-                <i class="fa-solid fa-folder-open text-2xl text-blue-400"></i>
-            </button>
-            <button onclick="filterByStat('Pendiente')" class="bg-slate-800 p-4 rounded-xl border border-slate-700 hover:border-amber-500 transition flex items-center justify-between text-left">
-                <div>
-                    <p class="text-xs text-slate-400">Pendientes</p>
-                    <p id="statPending" class="text-2xl font-bold text-amber-400">0</p>
-                </div>
-                <i class="fa-solid fa-clock text-2xl text-amber-400"></i>
-            </button>
-            <button onclick="filterByStat('Completada')" class="bg-slate-800 p-4 rounded-xl border border-slate-700 hover:border-emerald-500 transition flex items-center justify-between text-left">
-                <div>
-                    <p class="text-xs text-slate-400">Completadas</p>
-                    <p id="statCompleted" class="text-2xl font-bold text-emerald-400">0</p>
-                </div>
-                <i class="fa-solid fa-check-circle text-2xl text-emerald-400"></i>
-            </button>
-            <button onclick="filterByStat('INVOICED')" class="bg-slate-800 p-4 rounded-xl border border-slate-700 hover:border-violet-500 transition flex items-center justify-between text-left">
-                <div>
-                    <p class="text-xs text-slate-400">Cobradas</p>
-                    <p id="statInvoiced" class="text-2xl font-bold text-violet-400">0</p>
-                </div>
-                <i class="fa-solid fa-sack-dollar text-2xl text-violet-400"></i>
+        <div class="relative">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <button onclick="filterByStat('ALL')" class="bg-slate-800 p-4 rounded-xl border border-slate-700 hover:border-blue-500 transition flex items-center justify-between text-left">
+                    <div>
+                        <p class="text-xs text-slate-400">Total Órdenes</p>
+                        <p id="statTotal" class="text-2xl font-bold text-white">0</p>
+                    </div>
+                    <i class="fa-solid fa-folder-open text-2xl text-blue-400"></i>
+                </button>
+                <button onclick="filterByStat('Pendiente')" class="bg-slate-800 p-4 rounded-xl border border-slate-700 hover:border-amber-500 transition flex items-center justify-between text-left">
+                    <div>
+                        <p class="text-xs text-slate-400">Pendientes</p>
+                        <p id="statPending" class="text-2xl font-bold text-amber-400">0</p>
+                    </div>
+                    <i class="fa-solid fa-clock text-2xl text-amber-400"></i>
+                </button>
+                <button onclick="filterByStat('Completada')" class="bg-slate-800 p-4 rounded-xl border border-slate-700 hover:border-emerald-500 transition flex items-center justify-between text-left">
+                    <div>
+                        <p class="text-xs text-slate-400">Completadas</p>
+                        <p id="statCompleted" class="text-2xl font-bold text-emerald-400">0</p>
+                    </div>
+                    <i class="fa-solid fa-check-circle text-2xl text-emerald-400"></i>
+                </button>
+                <button onclick="filterByStat('INVOICED')" class="bg-slate-800 p-4 rounded-xl border border-slate-700 hover:border-violet-500 transition flex items-center justify-between text-left">
+                    <div>
+                        <p class="text-xs text-slate-400">Cobradas</p>
+                        <p id="statInvoiced" class="text-2xl font-bold text-violet-400">0</p>
+                    </div>
+                    <i class="fa-solid fa-sack-dollar text-2xl text-violet-400"></i>
+                </button>
+            </div>
+
+            <!-- Botón circular central: órdenes que todavía no se han cobrado -->
+            <button onclick="filterByStat('NOT_INVOICED')" title="Ver órdenes pendientes de cobro"
+                class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-14 h-14 rounded-full bg-rose-600 hover:bg-rose-500 border-4 border-slate-950 shadow-lg flex items-center justify-center transition">
+                <i class="fa-solid fa-hand-holding-dollar text-white text-base"></i>
+                <span id="statNotInvoiced" class="absolute -top-1.5 -right-1.5 bg-white text-rose-700 text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 border border-rose-600">0</span>
             </button>
         </div>
 
@@ -1601,6 +1611,7 @@
             document.getElementById('statPending').innerText = orders.filter(o => o.status === 'Pendiente').length;
             document.getElementById('statCompleted').innerText = orders.filter(o => o.status === 'Completada').length;
             document.getElementById('statInvoiced').innerText = orders.filter(o => o.invoiced === true).length;
+            document.getElementById('statNotInvoiced').innerText = orders.filter(o => o.invoiced !== true).length;
             checkUrgentBanner();
 
             let filtered = orders.filter(o => {
@@ -1610,7 +1621,10 @@
                     (o.clientCif && o.clientCif.toLowerCase().includes(search)) ||
                     o.jobTitle.toLowerCase().includes(search);
                 
-                const matchesStatus = statusFilter === 'ALL' || (statusFilter === 'INVOICED' ? o.invoiced === true : o.status === statusFilter);
+                const matchesStatus = statusFilter === 'ALL' ? true
+                    : statusFilter === 'INVOICED' ? o.invoiced === true
+                    : statusFilter === 'NOT_INVOICED' ? o.invoiced !== true
+                    : o.status === statusFilter;
                 const matchesDate = !dateFilter || o.date === dateFilter || o.deliveryDate === dateFilter;
 
                 return matchesSearch && matchesStatus && matchesDate;
