@@ -2471,6 +2471,14 @@
                     quotes.push(orderData);
                 }
                 saveQuotes();
+                if (!orderId) {
+                    // Al crear un presupuesto nuevo, lo llevamos a la vista de
+                    // Presupuestos y a la pestaña "Pendientes" (que es donde nace
+                    // siempre un presupuesto nuevo), para que se vea al instante
+                    // aunque antes estuvieras mirando otra pestaña u otra sección.
+                    switchView('quotes');
+                    switchQuoteFilter('Presupuesto');
+                }
             } else {
                 if (orderId) {
                     const idx = orders.findIndex(o => o.id === orderId);
