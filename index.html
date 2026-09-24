@@ -147,14 +147,16 @@
                     <span class="hidden lg:inline">Restaurar</span>
                     <input type="file" id="importFile" onchange="importData(event)" accept=".json" class="hidden">
                 </label>
-                <button onclick="openModal('new', null, 'quote')" class="bg-amber-600 hover:bg-amber-500 text-white font-medium px-2.5 py-1.5 rounded-lg flex items-center space-x-1.5 transition shadow text-xs sm:text-sm">
-                    <i class="fa-solid fa-file-pen"></i>
-                    <span>Presupuesto</span>
-                </button>
-                <button onclick="openModal('new', null, 'order')" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-2.5 py-1.5 rounded-lg flex items-center space-x-1.5 transition shadow text-xs sm:text-sm">
-                    <i class="fa-solid fa-plus"></i>
-                    <span>Órden</span>
-                </button>
+                <div class="flex gap-2 w-full sm:w-auto">
+                    <button onclick="openModal('new', null, 'quote')" class="flex-1 sm:flex-none justify-center bg-amber-600 hover:bg-amber-500 text-white font-medium px-2.5 py-1.5 rounded-lg flex items-center space-x-1.5 transition shadow text-xs sm:text-sm">
+                        <i class="fa-solid fa-file-pen"></i>
+                        <span>Presupuesto</span>
+                    </button>
+                    <button onclick="openModal('new', null, 'order')" class="flex-1 sm:flex-none justify-center bg-blue-600 hover:bg-blue-500 text-white font-medium px-2.5 py-1.5 rounded-lg flex items-center space-x-1.5 transition shadow text-xs sm:text-sm">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Órden</span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -268,9 +270,9 @@
 
             <!-- Botón circular central: órdenes que todavía no se han cobrado -->
             <button onclick="filterByStat('NOT_INVOICED')" title="Ver órdenes pendientes de cobro"
-                class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-14 h-14 rounded-full bg-rose-600 hover:bg-rose-500 border-4 border-slate-950 shadow-lg flex items-center justify-center transition">
+                class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-14 h-14 rounded-full bg-fuchsia-600 hover:bg-fuchsia-500 border-4 border-slate-950 shadow-lg flex items-center justify-center transition">
                 <i class="fa-solid fa-hand-holding-dollar text-white text-base"></i>
-                <span id="statNotInvoiced" class="absolute -top-1.5 -right-1.5 bg-white text-rose-700 text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 border border-rose-600">0</span>
+                <span id="statNotInvoiced" class="absolute -top-1.5 -right-1.5 bg-white text-fuchsia-700 text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 border border-fuchsia-600">0</span>
             </button>
         </div>
 
@@ -365,11 +367,15 @@
                 <button onclick="setInvoicePeriod('year')" id="periodBtn-year" class="period-btn text-xs px-3 py-1.5 rounded-lg font-medium border border-slate-700 bg-slate-900 text-slate-300 hover:border-violet-500">Este año</button>
                 <button onclick="setInvoicePeriod('all')" id="periodBtn-all" class="period-btn text-xs px-3 py-1.5 rounded-lg font-medium border border-slate-700 bg-slate-900 text-slate-300 hover:border-violet-500">Todo</button>
             </div>
-            <div class="flex items-center gap-2 flex-wrap">
-                <label class="text-xs text-slate-400 font-medium">Desde:</label>
-                <input type="date" id="invoiceDateFrom" onchange="setInvoicePeriod('custom')" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-violet-500">
-                <label class="text-xs text-slate-400 font-medium">Hasta:</label>
-                <input type="date" id="invoiceDateTo" onchange="setInvoicePeriod('custom')" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-violet-500">
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-xs text-slate-400 font-medium block mb-1">Desde:</label>
+                    <input type="date" id="invoiceDateFrom" onchange="setInvoicePeriod('custom')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 sm:px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-violet-500">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 font-medium block mb-1">Hasta:</label>
+                    <input type="date" id="invoiceDateTo" onchange="setInvoicePeriod('custom')" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 sm:px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-violet-500">
+                </div>
             </div>
 
             <div class="mt-4 bg-violet-500/10 border border-violet-500/30 rounded-xl p-4 flex items-center justify-between flex-wrap gap-2">
@@ -508,7 +514,8 @@
                         </div>
                         <div class="sm:col-span-2">
                             <label class="block text-slate-300 mb-1">Nombre / Razón Social *</label>
-                            <input type="text" id="clientName" placeholder="Nombre del cliente o empresa" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none">
+                            <input type="text" id="clientName" oninput="autofillClientData()" list="clientNamesList" placeholder="Nombre del cliente o empresa" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100 focus:border-blue-500 focus:outline-none">
+                            <datalist id="clientNamesList"></datalist>
                         </div>
                         <div>
                             <label class="block text-slate-300 mb-1">CIF / NIF / DNI</label>
@@ -1410,8 +1417,8 @@
                         <span class="text-xs px-2.5 py-1 rounded-full font-semibold border bg-violet-500/10 text-violet-300 border-violet-500/30">Cobro</span>
                     </div>
                     <h3 class="text-base font-bold text-white mb-1 line-clamp-1">${escapeHtml(invoice.jobTitle)}</h3>
-                    <p class="text-sm font-medium text-slate-300 mb-3 flex items-center gap-1.5">
-                        <i class="fa-solid fa-user text-xs text-slate-400"></i> ${escapeHtml(invoice.clientName)}
+                    <p class="text-sm font-bold text-emerald-400 mb-3 flex items-center gap-1.5">
+                        <i class="fa-solid fa-user text-xs text-emerald-500"></i> ${escapeHtml(invoice.clientName)}
                     </p>
                     <div class="grid grid-cols-2 gap-2 text-xs text-slate-400 bg-slate-900/60 p-3 rounded-lg mb-4">
                         <div><span class="text-slate-500 block">Fecha:</span> <span class="text-slate-300">${formatDate(invoice.date)}</span></div>
@@ -1901,6 +1908,56 @@
         }
 
         // Ajusta qué bloques se ven y en qué orden, según sea Orden o Presupuesto
+        // Recopila los datos de cada cliente distinto que ya ha tenido una orden,
+        // presupuesto o cobro, quedándose con el registro más reciente de cada uno,
+        // para poder autocompletar sus datos al escribir su nombre.
+        function getClientHistory() {
+            const all = [...orders, ...quotes, ...invoices]
+                .filter(o => o.clientName && o.clientName.trim())
+                .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+            const map = new Map();
+            all.forEach(o => {
+                const key = o.clientName.trim().toLowerCase();
+                if (!map.has(key)) {
+                    map.set(key, {
+                        clientName: o.clientName.trim(),
+                        clientNum: o.clientNum || '',
+                        clientCif: o.clientCif || '',
+                        clientPhone: o.clientPhone || '',
+                        clientEmail: o.clientEmail || '',
+                        clientAddress: o.clientAddress || ''
+                    });
+                }
+            });
+            return map;
+        }
+
+        // Rellena la lista de sugerencias (datalist) con los nombres de clientes ya conocidos.
+        function populateClientNamesList() {
+            const list = document.getElementById('clientNamesList');
+            if (!list) return;
+            const map = getClientHistory();
+            list.innerHTML = Array.from(map.values())
+                .map(c => `<option value="${escapeHtml(c.clientName)}">`)
+                .join('');
+        }
+
+        // Al escribir/seleccionar un nombre de cliente que ya existe en órdenes,
+        // presupuestos o cobros anteriores, rellena automáticamente el resto de sus
+        // datos (solo los campos que estén vacíos, para no pisar cambios manuales).
+        function autofillClientData() {
+            const nameInput = document.getElementById('clientName');
+            const key = nameInput.value.trim().toLowerCase();
+            if (!key) return;
+            const client = getClientHistory().get(key);
+            if (!client) return;
+            const fieldMap = { clientNum: 'clientNum', clientCif: 'clientCif', clientPhone: 'clientPhone', clientEmail: 'clientEmail', clientAddress: 'clientAddress' };
+            Object.keys(fieldMap).forEach(k => {
+                const el = document.getElementById(fieldMap[k]);
+                if (el && !el.value.trim() && client[k]) el.value = client[k];
+            });
+        }
+
         function updateFormLayoutForType(formType) {
             const isQuote = formType === 'quote';
             document.getElementById('metaFieldsBlock').classList.toggle('hidden', isQuote);
@@ -1919,6 +1976,7 @@
             goToStep(1);
             currentFormType = formType;
             updateFormLayoutForType(formType);
+            populateClientNamesList();
 
             const topSaveBtn = document.getElementById('topSaveBtn');
             topSaveBtn.classList.remove('hidden');
