@@ -12,3 +12,11 @@ r=calculate({...p,copies:10,pages:36});assert.equal(r.hits,110);assert.equal(r.c
 assert.throws(()=>calculate({...p,pages:31}));assert.throws(()=>calculate({...p,innerW:20,innerH:20}));
 r=calculate({...p,copies:10,covers:1});assert.equal(r.hits,100);assert.equal(r.colorRate,1);
 console.log('Magazine calculations: passed');
+const mixed={...p,colorPages:8,bwPages:24,colorFaces:2};
+r=calculate(mixed);assert.equal(r.innerHits,800);assert.equal(r.colorHits,300);assert.equal(r.bwHits,600);
+r=calculate({...mixed,colorFaces:8});assert.equal(r.colorHits,900);assert.equal(r.bwHits,0);
+assert.throws(()=>calculate({...mixed,colorFaces:''}));assert.throws(()=>calculate({...mixed,colorFaces:1}));
+r=calculate({...mixed,colorPages:0,bwPages:32,colorFaces:''});assert.equal(r.colorHits,100);assert.equal(r.bwHits,800);
+r=calculate({...mixed,colorPages:32,bwPages:0,colorFaces:''});assert.equal(r.colorHits,900);
+assert.throws(()=>calculate({...mixed,colorPages:1.5}));assert.throws(()=>calculate({...mixed,bwPages:-1}));
+console.log('Mixed interior calculations: passed');
