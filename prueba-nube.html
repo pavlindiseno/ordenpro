@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>OrdenPro · Prueba de conexión</title>
+  <meta name="robots" content="noindex,nofollow">
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#0f172a;color:#f1f5f9;font:16px/1.5 system-ui,sans-serif}
+    main{max-width:480px;margin:7vh auto;padding:24px}header{display:flex;align-items:center;gap:14px;margin-bottom:28px}
+    header img{width:52px;height:52px;border-radius:10px}h1{font-size:24px;margin:0}h2{font-size:20px;margin:0 0 12px}
+    .card{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:24px}p{color:#cbd5e1}
+    label{display:block;margin:16px 0 6px;font-size:14px}input{width:100%;padding:12px;border:1px solid #475569;border-radius:8px;background:#0f172a;color:#f1f5f9;font:inherit}
+    button{width:100%;margin-top:20px;padding:12px;background:#2563eb;color:white;border:0;border-radius:8px;font:600 16px system-ui;cursor:pointer}
+    button:disabled{opacity:.6;cursor:wait}#result{white-space:pre-line;overflow-wrap:anywhere;margin-top:20px}.ok{color:#6ee7b7}.error{color:#fcd34d}
+    small{display:block;color:#94a3b8;margin-top:18px}a{color:#93c5fd}
+  </style>
+</head>
+<body><main>
+  <header><img src="icon-512.png" alt="Logo OrdenPro"><div><h1>OrdenPro</h1><span>Prueba de conexión con la nube</span></div></header>
+  <section class="card">
+    <h2>Comprobar Supabase</h2>
+    <p>Esta prueba comprueba el acceso a la nube. No sube, borra ni sustituye tus órdenes, presupuestos o cobros.</p>
+    <form id="testForm">
+      <label for="email">Cuenta de empresa</label><input id="email" name="username" value="pavlindiseno@gmail.com" autocomplete="username" readonly>
+      <label for="password">Contraseña del usuario de OrdenPro en Supabase</label><input id="password" type="password" name="password" autocomplete="current-password" required>
+      <button id="testButton" type="submit">Comprobar conexión</button>
+    </form>
+    <div id="result" role="status" aria-live="polite"></div>
+    <small>Es la contraseña del usuario que creaste en Authentication → Users. Esta página no guarda tu contraseña ni la sesión en el dispositivo.</small>
+  </section>
+  <p><a href="./">Volver a OrdenPro</a></p>
+</main>
+<script>
+  const result=document.getElementById('result'), button=document.getElementById('testButton');
+  let loading;
+  function loadClient() {
+    if(window.supabase) return Promise.resolve();
+    if(loading) return loading;
+    loading=new Promise((resolve,reject)=>{
+      const script=document.createElement('script');
+      script.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.js';
+      script.onload=resolve;
+      script.onerror=()=>{loading=null;reject(new Error('No se pudo cargar la conexión. Comprueba Internet y vuelve a intentarlo.'));};
+      document.head.appendChild(script);
+    });
+    return loading;
+  }
+  document.getElementById('testForm').addEventListener('submit',async event=>{
+    event.preventDefault();button.disabled=true;result.className='';result.textContent='Comprobando conexión…';
+    let client;
+    try {
+      await loadClient();
+      client=window.supabase.createClient('https://rpdyovvgaqgodjexjplt.supabase.co','sb_publishable_UHxRnG5A8THu4ceGPV5xDA_fY74jjNK',{
+        auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}
+      });
+      const password=document.getElementById('password').value;
+      document.getElementById('password').value='';
+      const auth=await client.auth.signInWithPassword({email:'pavlindiseno@gmail.com',password});
+      if(auth.error) throw new Error('No se pudo iniciar sesión: '+auth.error.message);
+      const response=await client.rpc('ordenpro_sync',{changes:[]});
+      if(response.error) throw new Error('El usuario funciona, pero la función de sincronización devuelve: '+response.error.message);
+      for(const name of ['orders','quotes','invoices']) if(!Array.isArray(response.data?.['ordenpro_'+name])) throw new Error('La nube no ha devuelto el formato esperado.');
+      result.className='ok';
+      result.textContent='CONEXIÓN CORRECTA\nUsuario y función de sincronización comprobados.\n\nDatos actuales en la nube:\nÓrdenes: '+response.data.ordenpro_orders.filter(r=>!r.deleted_at).length+
+        '\nPresupuestos: '+response.data.ordenpro_quotes.filter(r=>!r.deleted_at).length+
+        '\nCobros: '+response.data.ordenpro_invoices.filter(r=>!r.deleted_at).length;
+    } catch(error) {result.className='error';result.textContent=error.message || 'No se pudo completar la prueba.';}
+    finally {document.getElementById('password').value='';button.disabled=false;if(client) await client.auth.signOut({scope:'local'}).catch(()=>{});}
+  });
+</script>
+</body></html>
