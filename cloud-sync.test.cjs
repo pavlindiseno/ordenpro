@@ -2,7 +2,7 @@ const vm=require('node:vm'), fs=require('node:fs'), assert=require('node:assert/
 (async()=>{
   const nodes=new Map(), handlers={};let data={orders:[{id:'1',orderNum:'OT-0001',clientName:'Cliente'}],quotes:[],invoices:[]};
   const remote={ordenpro_orders:[],ordenpro_quotes:[],ordenpro_invoices:[]};
-  let authHandler, rpcError=null, rpcCalls=0, stored;
+  let authHandler, rpcError=null, rpcCalls=0, stored, duringWrite=null;
   const session={user:{id:'test-owner',email:'pavlindiseno@gmail.com'}};
   const node=id=>{
     if(!nodes.has(id))nodes.set(id,{textContent:'',value:'test-password',hidden:false,classList:{contains:()=>true},showModal(){this.open=true},close(){this.open=false}});
@@ -13,7 +13,7 @@ const vm=require('node:vm'), fs=require('node:fs'), assert=require('node:assert/
     for(const c of changes){const arr=remote[c.table],old=arr.find(r=>r.id===c.id);if(old){old.data=c.data;old.version++;old.deleted_at=c.deleted?'today':null}else arr.push({id:c.id,data:c.data,version:1,deleted_at:null});}
     return {data:JSON.parse(JSON.stringify(remote))};
   }};
-  const context={console,Blob,setTimeout,clearTimeout,setInterval:()=>{},confirm:()=>true,navigator:{onLine:true},localStorage:{setItem(){}},indexedDB:{open(){const req={};setTimeout(()=>{req.result={transaction(){const tx={objectStore:()=>({get(){const r={result:stored};setTimeout(()=>tx.oncomplete(),0);return r},put(value){stored=JSON.parse(JSON.stringify(value));const r={};setTimeout(()=>tx.oncomplete(),0);return r}})};return tx}};req.onsuccess()},0);return req}},document:{getElementById:node,addEventListener:(name,fn)=>handlers[name]=fn},addEventListener(){},supabase:{createClient:()=>sdk},ordenproData:{read:()=>data,apply:value=>data=value}};
+  const context={console,Blob,setTimeout,clearTimeout,setInterval:()=>{},confirm:()=>true,navigator:{onLine:true},localStorage:{setItem(){}},indexedDB:{open(){const req={};setTimeout(()=>{req.result={transaction(){const tx={objectStore:()=>({get(){const r={result:stored};setTimeout(()=>tx.oncomplete(),0);return r},put(value){stored=JSON.parse(JSON.stringify(value));if(duringWrite){const fn=duringWrite;duringWrite=null;fn();}const r={};setTimeout(()=>tx.oncomplete(),0);return r}})};return tx}};req.onsuccess()},0);return req}},document:{getElementById:node,addEventListener:(name,fn)=>handlers[name]=fn},addEventListener(){},supabase:{createClient:()=>sdk},ordenproData:{read:()=>data,apply:value=>data=value}};
   context.window=context;context.globalThis=context;vm.createContext(context);
   vm.runInContext(fs.readFileSync(__dirname+'/cloud-core.js','utf8'),context);
   vm.runInContext(fs.readFileSync(__dirname+'/cloud-sync.js','utf8'),context);
@@ -22,6 +22,9 @@ const vm=require('node:vm'), fs=require('node:fs'), assert=require('node:assert/
   assert.equal(node('cloudPassword').value,'');
   await context.ordenproCloud.upload();assert.equal(remote.ordenpro_orders.length,1);
   data.orders[0].clientName='Editado';await context.ordenproCloud.sync();assert.equal(remote.ordenpro_orders[0].version,2);
+  duringWrite=()=>{data.orders[0].clientName='Editado durante IndexedDB'};
+  await context.ordenproCloud.sync();assert.equal(data.orders[0].clientName,'Editado durante IndexedDB');
+  await context.ordenproCloud.sync();assert.equal(remote.ordenpro_orders[0].data.clientName,'Editado durante IndexedDB');
   rpcError={code:'40001',message:'Conflicto'};data.orders[0].clientName='Local pendiente';await context.ordenproCloud.sync();
   assert.equal(data.orders[0].clientName,'Local pendiente');assert.match(node('cloudStatus').textContent,/Conflicto/);
   const calls=rpcCalls;await context.ordenproCloud.sync();assert.equal(rpcCalls,calls);
