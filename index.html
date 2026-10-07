@@ -586,6 +586,7 @@
 
                 <!-- PASO 3: COSTES -->
                 <div class="wizard-step hidden" data-step="3">
+                <button type="button" onclick="ordenproMagazineUI.open()" class="mb-4 w-full bg-amber-600 hover:bg-amber-500 text-white font-semibold p-3 rounded-lg flex items-center justify-center gap-2"><i class="fa-solid fa-book-open"></i> Calcular revista · A5 / 16 × 22 / A4</button>
                 <!-- Costes de Producción -->
                 <div>
                     <h3 class="text-md font-semibold text-emerald-400 border-b border-slate-700 pb-2 mb-3 flex items-center gap-2">
@@ -1979,6 +1980,7 @@
             const form = document.getElementById('orderForm');
 
             form.reset();
+            window.ordenproMagazineUI?.load(null);
             document.getElementById('orderDate').valueAsDate = new Date();
             goToStep(1);
             currentFormType = formType;
@@ -2010,6 +2012,7 @@
                     : `<i class="fa-solid fa-pen-to-square text-blue-400"></i><span>Editar Órden de Trabajo</span>`;
                 const order = sourceList.find(o => o.id === orderId);
                 if (order) {
+                    window.ordenproMagazineUI?.load(order.magazineEstimate);
                     document.getElementById('orderId').value = order.id;
                     document.getElementById('orderNum').value = order.orderNum;
                     document.getElementById('orderRef').value = order.orderRef || '';
@@ -2471,6 +2474,7 @@
             const deliveryMethodVal = document.querySelector('input[name="deliveryMethod"]:checked')?.value || 'Recogida en Taller';
 
             const orderData = {
+                magazineEstimate: window.ordenproMagazineUI?.readSaved() || null,
                 id: orderId || 'ord_' + Date.now(),
                 orderNum: document.getElementById('orderNum').value,
                 orderRef: document.getElementById('orderRef').value,
@@ -2569,6 +2573,7 @@
 
         // Rellena el formulario (ya abierto) con los datos de una orden/presupuesto original, para duplicar
         function fillFormFromExisting(original) {
+            window.ordenproMagazineUI?.load(original.magazineEstimate);
             document.getElementById('orderRef').value = original.orderRef || '';
             document.getElementById('orderDeliveryDate').value = original.deliveryDate || '';
             const deliveryRadios = document.getElementsByName('deliveryMethod');
@@ -3194,5 +3199,7 @@
     </script>
     <script src="cloud-core.js"></script>
     <script src="cloud-sync.js"></script>
+<script src="magazine-core.js"></script>
+<script src="magazine-ui.js"></script>
 </body>
 </html>
