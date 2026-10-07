@@ -58,6 +58,7 @@
       status(changes.length?'Subiendo cambios…':'Comprobando nube…');
       const remote=await request(changes);
       const current=snapshot();
+      const previousBaseline=state.baseline;
       // Si se abrió un formulario durante la petición, aplaza aplicar la descarga.
       // Los cambios enviados ya están confirmados; la siguiente consulta traerá los demás.
       if(modalOpen()) {
@@ -69,10 +70,20 @@
         }
         state.baseline=acknowledged; await saveState(); status('Cambios enviados. Descarga pendiente al cerrar el formulario.');
       } else {
-        const merged=core.reconcile(sent,current,remote);
         // Journal para recuperar una actualización local interrumpida.
-        state={...state,baseline:remote,journal:merged}; await saveState();
-        window.ordenproData.apply(merged);
+        state={...state,baseline:remote,journal:{sent,remote}}; await saveState();
+        if(modalOpen()) {
+          const acknowledged=JSON.parse(JSON.stringify(previousBaseline));
+          for(const change of changes) {
+            const rows=acknowledged[change.table] || (acknowledged[change.table]=[]);
+            const row=remote[change.table].find(r=>r.id===change.id), i=rows.findIndex(r=>r.id===change.id);
+            if(i<0) rows.push(row); else rows[i]=row;
+          }
+          state.baseline=acknowledged;
+        } else {
+          // Vuelve a leer después de IndexedDB: también conserva cambios durante ese guardado.
+          window.ordenproData.apply(core.reconcile(sent,snapshot(),remote));
+        }
         delete state.journal; await saveState();
         status(core.diff(snapshot(),state.baseline).length?'Cambios pendientes de subir.':'Sincronizado');
       }
@@ -94,7 +105,7 @@
       } else {
         if(!confirm('Se cargarán '+count(remoteData)+' registros de la nube y se sustituirán los de este dispositivo. Se descargará antes una copia de los datos actuales. ¿Continuar?')) return;
         backup(local);
-        state={owner:session.user.id,ready:true,baseline:remote,journal:remoteData}; await saveState();
+        state={owner:session.user.id,ready:true,baseline:remote,journal:{sent:local,remote}}; await saveState();
         window.ordenproData.apply(remoteData); delete state.journal; await saveState();
       }
       blocked=false; status('Conectado. Sincronización automática activa.');
@@ -145,7 +156,11 @@
   document.addEventListener('DOMContentLoaded',async ()=>{
     try {state=await stateIO(false);} catch(error){blocked=true;report(error);return;}
     if(state?.journal) {
-      try {window.ordenproData.apply(state.journal);delete state.journal;await saveState();} catch(error){blocked=true;report(error);}
+      try {
+        const journal=state.journal;
+        window.ordenproData.apply(journal.sent && journal.remote ? core.reconcile(journal.sent,snapshot(),journal.remote) : journal);
+        delete state.journal;await saveState();
+      } catch(error){blocked=true;report(error);}
     }
     if(state?.ready) start().catch(report);
     setInterval(sync,15000);
