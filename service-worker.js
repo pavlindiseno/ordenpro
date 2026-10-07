@@ -1,8 +1,10 @@
-const CACHE_NAME = 'ordenpro-cache-v23';
+const CACHE_NAME = 'ordenpro-cache-v24-cloud';
 
 // Archivos propios de la app: SIEMPRE deben poder cachearse (están en el mismo sitio)
 const LOCAL_ASSETS = [
   './index.html',
+  './cloud-core.js',
+  './cloud-sync.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'
@@ -50,6 +52,9 @@ function isCdnRequest(url) {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  // Nunca almacenar sesiones ni respuestas de la base de datos en la caché PWA.
+  const requestUrl = new URL(event.request.url);
+  if (requestUrl.origin !== self.location.origin && !isCdnRequest(event.request.url)) return;
 
   // Recursos externos (Tailwind, iconos, PDF): caché primero, al instante.
   // Si hay conexión, se actualiza la copia guardada por detrás para la próxima vez,
