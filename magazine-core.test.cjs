@@ -20,3 +20,12 @@ r=calculate({...mixed,colorPages:0,bwPages:32,colorFaces:''});assert.equal(r.col
 r=calculate({...mixed,colorPages:32,bwPages:0,colorFaces:''});assert.equal(r.colorHits,900);
 assert.throws(()=>calculate({...mixed,colorPages:1.5}));assert.throws(()=>calculate({...mixed,bwPages:-1}));
 console.log('Mixed interior calculations: passed');
+const base=calculate(p).total;
+r=calculate({...p,designEnabled:true,designPages:'',designPrice:5});assert.equal(r.design,160);assert.equal(r.total,base+160);
+assert.equal(calculate({...p,copies:500,designEnabled:true,designPages:32,designPrice:5}).design,160);
+assert.equal(calculate({...p,designEnabled:true,designPages:36,designPrice:7}).design,252);
+assert.equal(calculate({...p,designEnabled:false,designPages:36,designPrice:7}).design,0);
+assert.equal(calculate({...p,designEnabled:true,designPages:36,designPrice:0}).design,0);
+assert.throws(()=>calculate({...p,designEnabled:true,designPages:1.5,designPrice:5}));
+assert.throws(()=>calculate({...p,designEnabled:true,designPages:32,designPrice:-5}));
+console.log('Design charged once, editable and optional: passed');
