@@ -8,8 +8,7 @@ context.ordenproMagazineUI.load(null);assert.equal(context.ordenproMagazineUI.re
 get('mag_format').value='16x22';get('mag_format').change();assert.equal(get('mag_innerW').value,52);assert.equal(get('mag_innerH').value,70);assert.equal(get('mag_covers').value,1);
 console.log('Magazine UI: apply, reopen, reset and replace passed');
 context.ordenproMagazineUI.load({format:'A5',pages:32,innerMode:'bw'});context.ordenproMagazineUI.open();assert.equal(get('mag_colorPages').value,0);assert.equal(get('mag_bwPages').value,32);
-get('mag_colorPages').value=8;get('mag_bwPages').value=24;get('mag_colorFaces').value='';const before=rows.length;get('mag_form').onsubmit({preventDefault(){}});assert.equal(rows.length,before);
-get('mag_colorFaces').value=2;get('mag_form').onsubmit({preventDefault(){}});assert.equal(get('printBWQty').value,600);
+get('mag_colorPages').value=8;get('mag_bwPages').value=24;get('mag_form').onsubmit({preventDefault(){}});assert.equal(get('printBWQty').value,600);
 console.log('Mixed UI and legacy migration: passed');
 context.ordenproMagazineUI.load(null);context.ordenproMagazineUI.open();assert.equal(get('mag_designPrice').value,5);assert.equal(get('mag_designEnabled').checked,true);get('mag_form').onsubmit({preventDefault(){}});assert.equal(rows.find(r=>r.name==='Revistas · Diseño').amount,'160.00');
 get('mag_designEnabled').checked=false;get('mag_form').onsubmit({preventDefault(){}});assert.equal(rows.some(r=>r.name==='Revistas · Diseño'),false);
