@@ -23,16 +23,12 @@ function calculate(p) {
  if(!['color','bw'].includes(p.innerMode)||!['color','bw'].includes(p.coverMode)) throw Error('Elige color o blanco y negro.');
  const iy=yieldSheets(+p.innerW,+p.innerH,f.w,f.h),cy=yieldSheets(+p.coverW,+p.coverH,45,32);
  if(!iy||!cy) throw Error('El tamaño de compra no permite obtener el pliego de impresión.');
- const innerPerCopy=Math.ceil(+p.pages/(f.pages*2));
- const innerSheets=+p.copies*innerPerCopy,coverSheets=Math.ceil(+p.copies/+p.covers);
- const innerHits=innerSheets*2,coverHits=coverSheets*2,hits=innerHits+coverHits;
- let colorFaces=p.innerMode==='color'?innerPerCopy*2:0;
- if(split&&+p.colorPages>0&&+p.bwPages>0){
- const min=Math.ceil(+p.colorPages/f.pages),max=Math.min(+p.colorPages,innerPerCopy*2);
- if(p.colorFaces===''||p.colorFaces==null||!Number.isInteger(+p.colorFaces)||+p.colorFaces<min||+p.colorFaces>max)throw Error(`Indica las caras de impresión a color por revista (entre ${min} y ${max}), según la colocación de las páginas.`);
- colorFaces=+p.colorFaces;
- }
- const colorHits=colorFaces*+p.copies+(p.coverMode==='color'?coverHits:0);
+ // Each face repeats one page for multiple copies (production stacking).
+ const batches=Math.ceil(+p.copies/f.pages);
+ const innerSheets=batches*(+p.pages/2),coverSheets=Math.ceil(+p.copies/+p.covers);
+ const innerHits=batches*+p.pages,coverHits=coverSheets*2,hits=innerHits+coverHits;
+ const interiorColorPages=split?+p.colorPages:(p.innerMode==='color'?+p.pages:0);
+ const colorHits=batches*interiorColorPages+(p.coverMode==='color'?coverHits:0);
  const bwHits=hits-colorHits;
  const innerParents=Math.ceil(Math.ceil(innerSheets*(1 + +p.waste/100))/iy);
  const coverParents=Math.ceil(Math.ceil(coverSheets*(1 + +p.waste/100))/cy);
@@ -49,7 +45,7 @@ function calculate(p) {
  design=designPages*designPrice;
  }
  const total=design+colorHits*colorRate+bwHits*bwRate+innerSale+coverSale+binding+lamination;
- return {design,designPages,designPrice,colorFaces,innerSheets,coverSheets,innerHits,coverHits,hits,colorHits,bwHits,colorRate,bwRate,innerParents,coverParents,innerCost,coverCost,innerSale,coverSale,binding,lamination,total,unit:total/+p.copies,blankPages:innerPerCopy*f.pages*2-+p.pages,iy,cy};
+ return {design,designPages,designPrice,batches,innerSheets,coverSheets,innerHits,coverHits,hits,colorHits,bwHits,colorRate,bwRate,innerParents,coverParents,innerCost,coverCost,innerSale,coverSale,binding,lamination,total,unit:total/+p.copies,blankPages:0,spareCopies:batches*f.pages-+p.copies,iy,cy};
 }
 root.OrdenProMagazine={calculate,formats,yieldSheets};
 if(typeof module!=='undefined') module.exports=root.OrdenProMagazine;
