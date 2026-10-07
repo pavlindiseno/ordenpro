@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict');const {calculate,yieldSheets}=require('./magazine-core.js');
+const p={format:'A5',copies:100,pages:32,innerMode:'color',coverMode:'color',innerW:45,innerH:64,coverW:45,coverH:64,innerPrice:26.7,coverPrice:81,innerMarkup:30,coverMarkup:20,covers:2,waste:0,binding:true,lamination:true};
+let r=calculate(p);assert.equal(r.innerSheets,400);assert.equal(r.coverSheets,50);assert.equal(r.hits,900);assert.equal(r.innerParents,200);assert.equal(r.coverParents,25);assert.equal(r.innerCost,10.68);assert.equal(r.binding,120);assert.equal(r.lamination,45);
+assert.equal(yieldSheets(52,70,46,33),2);assert.equal(yieldSheets(45,64,46,33),1);
+r=calculate({...p,format:'16x22',innerW:52,innerH:70,innerPrice:33.7,covers:1});assert.equal(r.hits,1000);assert.equal(r.colorRate,.23);
+r=calculate({...p,format:'A4',covers:1});assert.equal(r.innerSheets,800);assert.equal(r.hits,1800);
+r=calculate({...p,copies:101});assert.equal(r.coverSheets,51);assert.equal(r.coverParents,26);
+r=calculate({...p,innerMode:'bw'});assert.equal(r.colorHits,100);assert.equal(r.bwHits,800);assert.equal(r.colorRate,.23);assert.equal(r.bwRate,.15);
+for(const [copies,expected] of [[1,20],[10,30],[50,90],[100,120],[200,180],[300,220],[500,270],[501,270],[540,270],[541,270.5],[600,300]])assert.equal(calculate({...p,copies}).binding,expected);
+r=calculate({...p,copies:10,pages:32});assert.equal(r.hits,90);assert.equal(r.colorRate,1);
+r=calculate({...p,copies:10,pages:36});assert.equal(r.hits,110);assert.equal(r.colorRate,.825);assert.equal(r.blankPages,4);
+assert.throws(()=>calculate({...p,pages:31}));assert.throws(()=>calculate({...p,innerW:20,innerH:20}));
+r=calculate({...p,copies:10,covers:1});assert.equal(r.hits,100);assert.equal(r.colorRate,1);
+console.log('Magazine calculations: passed');

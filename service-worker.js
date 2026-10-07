@@ -1,8 +1,10 @@
-const CACHE_NAME = 'ordenpro-cache-v24-cloud';
+const CACHE_NAME = 'ordenpro-cache-v25-magazines';
 
 // Archivos propios de la app: SIEMPRE deben poder cachearse (están en el mismo sitio)
 const LOCAL_ASSETS = [
   './index.html',
+  './magazine-core.js',
+  './magazine-ui.js',
   './cloud-core.js',
   './cloud-sync.js',
   './manifest.json',
