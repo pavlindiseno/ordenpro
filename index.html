@@ -138,6 +138,9 @@
                     <span class="hidden md:inline">Instalar App</span>
                 </button>
                 <!-- Botones de Copia de Seguridad -->
+                <button onclick="ordenproCloud.open()" title="Conexión con la nube" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium px-2.5 py-1.5 rounded-lg flex items-center gap-1">
+                    <i class="fa-solid fa-cloud text-blue-400"></i><span id="cloudBadge" style="max-width:7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Nube</span>
+                </button>
                 <button onclick="exportData()" title="Guardar Copia de Seguridad" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium px-2.5 py-1.5 rounded-lg flex items-center space-x-1 transition">
                     <i class="fa-solid fa-download text-amber-400"></i>
                     <span class="hidden lg:inline">Respaldar</span>
@@ -1233,6 +1236,7 @@
         function saveOrders() {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
             renderOrders();
+            window.ordenproCloud?.changed();
         }
 
         function loadQuotes() {
@@ -1251,6 +1255,7 @@
         function saveQuotes() {
             localStorage.setItem(QUOTES_STORAGE_KEY, JSON.stringify(quotes));
             renderQuotes();
+            window.ordenproCloud?.changed();
         }
 
         function loadInvoices() {
@@ -1269,6 +1274,7 @@
         function saveInvoices() {
             localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
             renderInvoices();
+            window.ordenproCloud?.changed();
         }
 
         // ---- Tarjetas y render de Facturas ----
@@ -1522,6 +1528,7 @@
         function importData(event) {
             const file = event.target.files[0];
             if (!file) return;
+            if (!confirm('Restaurar sustituirá los datos actuales de este dispositivo. Si la nube está conectada, el cambio también se sincronizará. ¿Continuar?')) { event.target.value = ''; return; }
 
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -3154,5 +3161,38 @@
                       .replace(/'/g, "&#039;");
         }
     </script>
+    <dialog id="cloudDialog" class="bg-slate-800 text-slate-100 rounded-xl border border-slate-600 p-5 w-full max-w-md no-print" style="max-height:90vh;overflow:auto">
+        <div class="flex justify-between items-center mb-3"><h2 class="font-bold text-lg">OrdenPro en la nube</h2><button onclick="ordenproCloud.close()" aria-label="Cerrar">✕</button></div>
+        <p id="cloudStatus" class="text-sm text-blue-300 mb-3" role="status">Nube sin sesión</p>
+        <form id="cloudLogin" onsubmit="ordenproCloud.login(event)">
+            <label class="block text-sm mb-2">Cuenta de empresa<input value="pavlindiseno@gmail.com" readonly autocomplete="username" class="block w-full bg-slate-900 rounded p-2 mt-1"></label>
+            <label class="block text-sm mb-3">Contraseña de OrdenPro en Supabase<input id="cloudPassword" type="password" required autocomplete="current-password" class="block w-full bg-slate-900 rounded p-2 mt-1"></label>
+            <button class="bg-blue-600 rounded px-4 py-2 text-sm" type="submit">Iniciar sesión</button>
+        </form>
+        <div id="cloudActions" hidden class="space-y-3">
+            <p class="text-sm text-slate-300">Primera conexión: sube tus datos si la nube está vacía. En otro dispositivo, carga los datos de la nube. Después se sincronizarán automáticamente.</p>
+            <button onclick="ordenproCloud.upload()" class="block w-full bg-blue-600 rounded px-3 py-2 text-sm">Subir datos de este dispositivo</button>
+            <button onclick="ordenproCloud.download()" class="block w-full bg-slate-700 rounded px-3 py-2 text-sm">Cargar desde la nube</button>
+            <button onclick="ordenproCloud.sync()" class="block w-full bg-emerald-700 rounded px-3 py-2 text-sm">Sincronizar ahora</button>
+            <button onclick="exportData()" class="block w-full bg-slate-700 rounded px-3 py-2 text-sm">Respaldar datos actuales</button>
+            <button onclick="ordenproCloud.logout()" class="text-sm text-slate-400">Cerrar sesión</button>
+        </div>
+        <p id="cloudError" role="alert" class="text-sm text-amber-300 mt-3 break-words"></p>
+        <p class="text-xs text-slate-400 mt-4">Las fotos y adjuntos se incluyen de momento en los registros. Google Drive se conectará en una fase posterior. Al cerrar sesión, los datos locales permanecen en este dispositivo.</p>
+    </dialog>
+    <script>
+        window.ordenproData = {
+            read: () => ({orders, quotes, invoices}),
+            apply: data => {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data.orders));
+                localStorage.setItem(QUOTES_STORAGE_KEY, JSON.stringify(data.quotes));
+                localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(data.invoices));
+                orders = data.orders; quotes = data.quotes; invoices = data.invoices;
+                renderOrders(); renderQuotes(); renderInvoices();
+            }
+        };
+    </script>
+    <script src="cloud-core.js"></script>
+    <script src="cloud-sync.js"></script>
 </body>
 </html>
