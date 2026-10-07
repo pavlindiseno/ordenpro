@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ordenpro-cache-v25-magazines';
+const CACHE_NAME = 'ordenpro-cache-v26-mixed-pages';
 
 // Archivos propios de la app: SIEMPRE deben poder cachearse (están en el mismo sitio)
 const LOCAL_ASSETS = [
