@@ -1682,7 +1682,7 @@
                         <span class="text-lg font-bold text-blue-400 font-mono tracking-wide">${order.orderNum}</span>
                         <div class="flex items-center gap-1.5">
                             ${order.invoiced ? `<span title="Ya cobrada: ${escapeHtml(order.invoiceNum || '')}" class="text-[10px] px-2 py-1 rounded-full font-bold border bg-violet-500/10 text-violet-300 border-violet-500/30 flex items-center gap-1"><i class="fa-solid fa-sack-dollar"></i> Cobrada</span>` : ''}
-                            <select onchange="quickChangeStatus('${order.id}', this.value)" onclick="event.stopPropagation()" class="text-xs px-2 py-1 rounded-full font-semibold border ${badgeColor} bg-slate-800">
+                            <select data-order-status onchange="quickChangeStatus('${order.id}', this.value)" onclick="event.stopPropagation()" class="text-xs px-2 py-1 rounded-full font-semibold border ${badgeColor} bg-slate-800">
                                 <option value="Pendiente" ${order.status === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
                                 <option value="En Proceso" ${order.status === 'En Proceso' ? 'selected' : ''}>En Proceso</option>
                                 <option value="Completada" ${order.status === 'Completada' ? 'selected' : ''}>Completada</option>
