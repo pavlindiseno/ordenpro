@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ordenpro-cache-v29-discount-plotter';
+const CACHE_NAME = 'ordenpro-cache-v30-plotter-line-items';
 
 // Archivos propios de la app: SIEMPRE deben poder cachearse (están en el mismo sitio)
 const LOCAL_ASSETS = [
