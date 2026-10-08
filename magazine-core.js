@@ -36,7 +36,9 @@ function calculate(p) {
  const innerSale=innerCost*(1 + +p.innerMarkup/100),coverSale=coverCost*(1 + +p.coverMarkup/100);
  let binding=0;
  if(p.binding) binding=+p.copies===1?20:+p.copies>500?Math.max(270,+p.copies*.5):[[10,30],[25,60],[50,90],[100,120],[200,180],[300,220],[400,250],[500,270]].find(r=>+p.copies<=r[0])[1];
- const lamination=p.lamination?45:0;
+ const laminationPrice=+(p.laminationPrice??45),discountPercent=+(p.discountPercent??0);
+ if(!Number.isFinite(laminationPrice)||laminationPrice<0||!Number.isFinite(discountPercent)||discountPercent<0||discountPercent>100)throw Error('Revisa el laminado y el descuento (entre 0 y 100 %).');
+ const lamination=p.lamination?laminationPrice:0;
  const colorRate=rate(hits,color),bwRate=rate(hits,bw);
  let design=0,designPages=0,designPrice=0;
  if(p.designEnabled){
@@ -44,8 +46,9 @@ function calculate(p) {
  if(!Number.isInteger(designPages)||designPages<0||!Number.isFinite(designPrice)||designPrice<0)throw Error('Revisa el diseño: páginas enteras y precio sin negativos.');
  design=designPages*designPrice;
  }
- const total=design+colorHits*colorRate+bwHits*bwRate+innerSale+coverSale+binding+lamination;
- return {design,designPages,designPrice,batches,innerSheets,coverSheets,innerHits,coverHits,hits,colorHits,bwHits,colorRate,bwRate,innerParents,coverParents,innerCost,coverCost,innerSale,coverSale,binding,lamination,total,unit:total/+p.copies,blankPages:0,spareCopies:batches*f.pages-+p.copies,iy,cy};
+ const subtotal=design+colorHits*colorRate+bwHits*bwRate+innerSale+coverSale+binding+lamination;
+ const discount=subtotal*discountPercent/100,total=subtotal-discount;
+ return {subtotal,discount,discountPercent,laminationPrice,design,designPages,designPrice,batches,innerSheets,coverSheets,innerHits,coverHits,hits,colorHits,bwHits,colorRate,bwRate,innerParents,coverParents,innerCost,coverCost,innerSale,coverSale,binding,lamination,total,unit:total/+p.copies,blankPages:0,spareCopies:batches*f.pages-+p.copies,iy,cy};
 }
 root.OrdenProMagazine={calculate,formats,yieldSheets};
 if(typeof module!=='undefined') module.exports=root.OrdenProMagazine;

@@ -1,0 +1,15 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const magazine=require('./magazine-core'),plotter=require('./plotter-core');
+const p={format:'A5',copies:101,colorPages:8,bwPages:24,coverMode:'color',innerW:45,innerH:64,coverW:45,coverH:64,innerPrice:26.7,coverPrice:81,covers:2,innerMarkup:20,coverMarkup:30,waste:0,binding:true,lamination:true,laminationPrice:75,designEnabled:true,designPrice:5,discountPercent:15};
+const r=magazine.calculate(p);assert.equal(r.lamination,75);assert.ok(Math.abs(r.total-r.subtotal*.85)<1e-9);assert.equal(r.colorHits,26*8+102);assert.equal(r.bwHits,26*24);assert.equal(magazine.calculate({...p,discountPercent:100}).total,0);assert.throws(()=>magazine.calculate({...p,discountPercent:101}));assert.throws(()=>magazine.calculate({...p,laminationPrice:-1}));
+const q={product:0,qty:3,width:50,height:100,price:21,laminate:true,lamPrice:18,eyelets:6,eyeletPrice:1,hangers:0,hangerPrice:6,minimum:0,discount:10};
+const t=plotter.calculate(q);assert.equal(t.area,1.5);assert.ok(Math.abs(t.total-(31.5+27+6)*.9)<1e-9);
+assert.equal(plotter.calculate({...q,laminate:false,minimum:100}).total,90);
+assert.throws(()=>plotter.calculate({...q,price:''}));
+const idx=plotter.products.findIndex(p=>p.name.startsWith('PVC 5 mm')&&p.size==='A4');
+assert.equal(plotter.calculate({...q,product:idx,price:25,laminate:false,eyelets:0,discount:0}).total,75);
+const els=new Map();const get=id=>{if(!els.has(id))els.set(id,{value:'',checked:false,addEventListener(t,f){this[t]=f;}});return els.get(id)};
+let rows=[{name:'Revistas · Papel',amount:12}],savedCalls=0;
+const c={OrdenProPlotter:plotter,document:{getElementById:get,createElement(){return{style:{},showModal(){},close(){}}},body:{append(){}}},confirm:()=>true,collectCustomCostRows:()=>rows,resetCustomCostRows:()=>rows=[],addCustomCostRow:r=>rows.push(r),updateCostTotals:()=>savedCalls++};c.window=c;vm.createContext(c);vm.runInContext(fs.readFileSync('./plotter-ui.js','utf8'),c);
+c.ordenproPlotterUI.open();get('plt_form').onsubmit({preventDefault(){}});assert.equal(rows.length,2);get('plt_form').onsubmit({preventDefault(){}});assert.equal(rows.length,2);assert.equal(rows[1].amount,'21.00');c.ordenproPlotterUI.load(c.ordenproPlotterUI.readSaved());c.ordenproPlotterUI.open();assert.equal(get('plt_price').value,21);c.ordenproPlotterUI.load(null);assert.equal(c.ordenproPlotterUI.readSaved(),null);
+console.log('Discount, editable lamination, plotter pricing and UI persistence passed');

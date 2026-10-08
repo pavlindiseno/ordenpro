@@ -1,10 +1,12 @@
-const CACHE_NAME = 'ordenpro-cache-v28-stacked-pages';
+const CACHE_NAME = 'ordenpro-cache-v29-discount-plotter';
 
 // Archivos propios de la app: SIEMPRE deben poder cachearse (están en el mismo sitio)
 const LOCAL_ASSETS = [
   './index.html',
   './magazine-core.js',
   './magazine-ui.js',
+  './plotter-core.js',
+  './plotter-ui.js',
   './cloud-core.js',
   './cloud-sync.js',
   './manifest.json',
