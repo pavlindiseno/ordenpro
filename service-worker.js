@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ordenpro-cache-v32-status-selection';
+const CACHE_NAME = 'ordenpro-cache-v33-roll-layout';
 
 // Archivos propios de la app: SIEMPRE deben poder cachearse (están en el mismo sitio)
 const LOCAL_ASSETS = [
@@ -7,6 +7,8 @@ const LOCAL_ASSETS = [
   './magazine-ui.js',
   './plotter-core.js',
   './plotter-ui.js',
+  './roll-core.js',
+  './roll-ui.js',
   './cloud-core.js',
   './cloud-sync.js',
   './manifest.json',
@@ -91,3 +93,4 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(event.request))
   );
 });
+
