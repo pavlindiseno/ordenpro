@@ -54,3 +54,20 @@ const turnedSeams=panelsBatch({roll:120,gap:5,overlap:2,orientation:'best',glass
 geometry(turnedSeams);
 for(const p of turnedSeams.placed)if(p.turned){assert.equal(p.overlapLeft,0);assert.equal(p.overlapRight,0);assert.ok(p.trim);}
 console.log('Mixed copies and free-corner packing: three 600×400 cuts in 1000×800 mm passed');
+const models={roll:100,gap:0,bleed:0,pieceOrientation:'mixed',pieces:[{width:40,height:30,qty:3,gap:2,bleed:1,label:'Cliente A'},{width:30,height:20,qty:4,gap:10,bleed:4,label:'Cliente B'}]};
+const joined=pack({...models,mixJobs:true}),separate=pack({...models,mixJobs:false});
+assert.equal(separate.segments.length,2);
+for(const result of [joined,separate]){
+ for(const p of result.placed){near(p.bleed,p.model===1?.1:.4);assert.ok(p.x-p.bleed>=-1e-8);assert.ok(p.x+p.width+p.bleed<=result.roll+1e-8);}
+ for(let i=0;i<result.placed.length;i++)for(let j=i+1;j<result.placed.length;j++){
+  const a=result.placed[i],b=result.placed[j],gap=Math.max(a.gap,b.gap,a.bleed+b.bleed);
+  assert.ok(a.x+a.width+gap<=b.x+1e-8||b.x+b.width+gap<=a.x+1e-8||a.y+a.height+gap<=b.y+1e-8||b.y+b.height+gap<=a.y+1e-8);
+ }
+}
+for(const segment of separate.segments)for(const p of separate.placed.filter(c=>c.model===segment.model)){assert.ok(p.y-p.bleed>=segment.start-1e-8);assert.ok(p.y+p.height+p.bleed<=segment.start+segment.length*100+1e-8);}
+for(const orientation of ['vertical','horizontal']){
+ const q=pack({...models,pieceOrientation:orientation});
+ for(const p of q.placed){near(p.width,orientation==='vertical'?p.sourceW:p.sourceH);near(p.height,orientation==='vertical'?p.sourceH:p.sourceW);}
+}
+assert.throws(()=>pack({roll:5,pieceOrientation:'horizontal',pieces:[{width:2,height:8,qty:1}]}),/no cabe/);
+console.log('Per-model bleed, gap, fixed rotations and separate full-width job segments passed');

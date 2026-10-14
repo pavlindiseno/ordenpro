@@ -4,12 +4,14 @@ const num=(v,label,min=0)=>{const n=Number(v);if(v===''||v==null||!Number.isFini
 const count=v=>{const n=num(v,'la cantidad',1);if(!Number.isInteger(n)||n>20000)throw Error('La cantidad debe ser entera, entre 1 y 20.000.');return n;};
 const ceil=n=>Math.ceil(n-1e-9);
 function settings(p){return {roll:num(p.roll,'el ancho útil de bobina',.01),gap:num(p.gap??5,'la separación')/10,margin:num(p.margin??0,'el margen por lado'),bleed:num(p.bleed??0,'el sangrado')/10};}
-function pack(p){
- const {roll,gap,margin,bleed}=settings(p),space=Math.max(0,gap-2*bleed);
+function packLayout(p){
+ const base=settings(p),roll=base.roll,margin=base.margin;
+ const gap=Math.max(...p.pieces.map(r=>num(r.gap??p.gap??5,'la separación')/10)),bleed=base.bleed;
+ const minBleed=Math.min(...p.pieces.map(r=>num(r.bleed??p.bleed??0,'el sangrado')/10)),space=Math.max(0,gap-2*minBleed);
  if(!Array.isArray(p.pieces)||!p.pieces.length)throw Error('Añade alguna pieza.');
  const pieces=[];let glassArea=0;
- p.pieces.forEach((r,i)=>{const w=num(r.width,'el ancho de la pieza',.01),h=num(r.height,'el alto de la pieza',.01),qty=count(r.qty);glassArea+=w*h*qty/10000;
- for(let j=0;j<qty;j++)pieces.push({id:i+1,label:r.label||'Pieza '+(i+1),w:w+2*margin,h:h+2*margin,sourceW:w,sourceH:h,fw:w+2*margin+2*bleed,fh:h+2*margin+2*bleed});});
+ p.pieces.forEach((r,i)=>{const w=num(r.width,'el ancho de la pieza',.01),h=num(r.height,'el alto de la pieza',.01),qty=count(r.qty),itemBleed=num(r.bleed??p.bleed??0,'el sangrado')/10,itemGap=num(r.gap??p.gap??5,'la separación')/10;glassArea+=w*h*qty/10000;
+ for(let j=0;j<qty;j++)pieces.push({id:i+1,label:r.label||'Pieza '+(i+1),w:w+2*margin,h:h+2*margin,sourceW:w,sourceH:h,bleed:itemBleed,gap:itemGap,fw:w+2*margin+2*itemBleed,fh:h+2*margin+2*itemBleed});});
  if(pieces.length>20000)throw Error('Calcula hasta 20.000 piezas por distribución.');
  for(const r of pieces)if(r.fw>roll+1e-8&&(!p.rotate||r.fh>roll+1e-8))throw Error(r.label+': no cabe en el ancho útil. Cambia la orientación o calcula el cristal por paños.');
  const orders=[(a,b)=>b.fh-a.fh||b.fw-a.fw,(a,b)=>b.fw-a.fw||b.fh-a.fh,(a,b)=>b.fw*b.fh-a.fw*a.fh,(a,b)=>Math.max(b.fw,b.fh)-Math.max(a.fw,a.fh)];
@@ -21,7 +23,7 @@ function pack(p){
  let chosen=null;
  for(const opt of opts){if(opt.w>roll+1e-8)continue;for(let i=0;i<shelves.length;i++){const row=shelves[i],x=row.used+(row.used?space:0);if(opt.h<=row.h+1e-8&&x+opt.w<=roll+1e-8){const score=(row.h-opt.h)*roll+(roll-x-opt.w);if(!chosen||score<chosen.score)chosen={...opt,row,x,score};}}}
  if(!chosen){const opt=opts.filter(o=>o.w<=roll+1e-8).sort((a,b)=>rowStrategy==='tall'?b.h-a.h||b.w-a.w:rowStrategy==='density'?(Math.floor((roll+space)/(b.w+space))*b.w-Math.floor((roll+space)/(a.w+space))*a.w)||a.h-b.h:a.h-b.h||b.w-a.w)[0];const row={y:bottom+(shelves.length?space:0),h:opt.h,used:0};shelves.push(row);bottom=row.y+row.h;chosen={...opt,row,x:0};}
- const {row,x,w,h,turned}=chosen;placed.push({...r,x:x+bleed,y:row.y+bleed,width:w-2*bleed,height:h-2*bleed,turned});row.used=x+w;
+ const {row,x,w,h,turned}=chosen;placed.push({...r,x:x+r.bleed,y:row.y+r.bleed,width:w-2*r.bleed,height:h-2*r.bleed,turned});row.used=x+w;
  }
  const result={mode:'pieces',roll,gap,margin,bleed,placed,length:bottom/100,consumedArea:roll*bottom/10000,glassArea,pieceCount:pieces.length,cutArea:pieces.reduce((n,r)=>n+r.w*r.h/10000,0)};
  if(!best||result.length<best.length-1e-8)best=result;
@@ -42,11 +44,34 @@ function pack(p){
     if(!chosen||score[0]<chosen.score[0]-1e-8||Math.abs(score[0]-chosen.score[0])<1e-8&&(score[1]<chosen.score[1]-1e-8||Math.abs(score[1]-chosen.score[1])<1e-8&&score[2]<chosen.score[2]-1e-8))chosen={...opt,x,y,score};
    }
    occupied.push(chosen);bottom=Math.max(bottom,chosen.y+chosen.h);
-   placed.push({...r,x:chosen.x+bleed,y:chosen.y+bleed,width:chosen.w-2*bleed,height:chosen.h-2*bleed,turned:chosen.turned});
+   placed.push({...r,x:chosen.x+r.bleed,y:chosen.y+r.bleed,width:chosen.w-2*r.bleed,height:chosen.h-2*r.bleed,turned:chosen.turned});
   }
   if(bottom/100<best.length-1e-8)best={...best,placed,length:bottom/100,consumedArea:roll*bottom/10000};
  }
  return best;
+}
+function pack(p){
+ if(!Array.isArray(p.pieces)||!p.pieces.length)throw Error('Añade alguna pieza.');
+ const orientation=p.pieceOrientation||(p.rotate?'mixed':'vertical');
+ const items=p.pieces.map(r=>orientation==='horizontal'?{...r,width:r.height,height:r.width}:r);
+ const params={...p,pieces:items,rotate:orientation==='mixed'};
+ function restore(r,index){
+  r.placed=r.placed.map(c=>({...c,id:index==null?c.id:index+1,model:index==null?c.id:index+1,
+   ...(orientation==='horizontal'?{sourceW:c.sourceH,sourceH:c.sourceW,turned:true}:{})}));
+  return r;
+ }
+ if(p.mixJobs!==false)return {...restore(packLayout(params)),pieceOrientation:orientation,mixJobs:true};
+ const placed=[],segments=[];let bottom=0,glassArea=0,cutArea=0,pieceCount=0,previousGap=0;
+ items.forEach((item,i)=>{
+  const r=restore(packLayout({...params,pieces:[item],gap:item.gap??p.gap??5,bleed:item.bleed??p.bleed??0}),i);
+  if(i)bottom+=Math.max(previousGap,r.gap);
+  const start=bottom;placed.push(...r.placed.map(c=>({...c,y:c.y+start})));bottom+=r.length*100;
+  segments.push({model:i+1,label:item.label||'Modelo '+(i+1),start,length:r.length,pieceCount:r.pieceCount});
+  glassArea+=r.glassArea;cutArea+=r.cutArea;pieceCount+=r.pieceCount;previousGap=r.gap;
+ });
+ if(pieceCount>20000)throw Error('Calcula hasta 20.000 piezas por distribución.');
+ const base=settings(p);
+ return {...base,mode:'pieces',placed,segments,length:bottom/100,consumedArea:base.roll*bottom/10000,glassArea,cutArea,pieceCount,pieceOrientation:orientation,mixJobs:false};
 }
 function panels(p){
  const roll=num(p.roll,'el ancho útil de bobina',.01),width=num(p.width,'el ancho del cristal',.01),height=num(p.height,'el alto del cristal',.01),margin=num(p.margin??0,'el margen por lado'),overlap=num(p.overlap??0,'el solape'),gap=num(p.gap??0,'la separación')/10,qty=count(p.qty??1);
