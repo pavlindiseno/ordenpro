@@ -29,7 +29,7 @@ function pack(p){
  return best;
 }
 function panels(p){
- const roll=num(p.roll,'el ancho útil de bobina',.01),width=num(p.width,'el ancho del cristal',.01),height=num(p.height,'el alto del cristal',.01),margin=num(p.margin??0,'el margen por lado'),overlap=num(p.overlap??2,'el solape'),gap=num(p.gap??0,'la separación')/10,qty=count(p.qty??1);
+ const roll=num(p.roll,'el ancho útil de bobina',.01),width=num(p.width,'el ancho del cristal',.01),height=num(p.height,'el alto del cristal',.01),margin=num(p.margin??0,'el margen por lado'),overlap=num(p.overlap??0,'el solape'),gap=num(p.gap??0,'la separación')/10,qty=count(p.qty??1);
  if(overlap>=roll)throw Error('El solape debe ser menor que el ancho de bobina.');
  const W=width+2*margin,H=height+2*margin;
  function option(orientation){const span=orientation==='vertical'?W:H,along=orientation==='vertical'?H:W,n=Math.max(1,ceil((span-overlap)/(roll-overlap))),last=span-(n-1)*(roll-overlap);
@@ -44,5 +44,15 @@ function panels(p){
  if(selected.pieceCount>20000)throw Error('Demasiados paños para una sola distribución.');
  return {...selected,alternatives:{vertical:{length:vertical.length,consumedArea:vertical.consumedArea,panels:vertical.panelsPerGlass},horizontal:{length:horizontal.length,consumedArea:horizontal.consumedArea,panels:horizontal.panelsPerGlass}}};
 }
-root.OrdenProRoll={pack,panels};if(typeof module!=='undefined')module.exports=root.OrdenProRoll;
+function panelsBatch(p){
+ if(!Array.isArray(p.glasses)||!p.glasses.length)throw Error('Añade al menos un cristal.');
+ if(p.glasses.length>1000)throw Error('Calcula hasta 1.000 cristales por partida.');
+ const results=p.glasses.map(g=>panels({...p,width:g.width,height:g.height,qty:1,margin:g.margin===''||g.margin==null?p.margin:g.margin}));
+ const gap=num(p.gap??0,'la separación')/10,placed=[];let offset=0;
+ results.forEach((r,i)=>{if(i)offset+=gap;r.placed.forEach(c=>placed.push({...c,id:placed.length+1,label:'Cristal '+(i+1)+' · '+c.label.split(' · ').at(-1),y:c.y+offset}));offset+=r.length*100;});
+ const sum=k=>results.reduce((a,r)=>a+r[k],0),alternative=k=>({length:results.reduce((a,r)=>a+r.alternatives[k].length,0)+(results.length-1)*gap/100});
+ const orientation=results.every(r=>r.orientation===results[0].orientation)?results[0].orientation:'mixta';
+ return {mode:'panels',roll:results[0].roll,margin:+p.margin||0,overlap:+p.overlap||0,gap,qty:results.length,orientation,glassResults:results,placed,pieceCount:placed.length,length:offset/100,consumedArea:results[0].roll*offset/10000,glassArea:sum('glassArea'),cutArea:sum('cutArea'),alternatives:{vertical:alternative('vertical'),horizontal:alternative('horizontal')}};
+}
+root.OrdenProRoll={pack,panels,panelsBatch};if(typeof module!=='undefined')module.exports=root.OrdenProRoll;
 })(globalThis);

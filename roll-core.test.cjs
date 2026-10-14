@@ -16,3 +16,7 @@ const offcut=pack({roll:30,gap:0,rotate:true,pieces:[{width:50,height:20,qty:2}]
 let seed=71;const random=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
 for(let i=0;i<50;i++){const q=pack({roll:120,gap:10,bleed:2,margin:1,rotate:true,pieces:Array.from({length:5},()=>({width:10+random()*70,height:10+random()*100,qty:1+Math.floor(random()*4)}))});geometry(q);}
 console.log('Paños, márgenes, sangrado, separación, rotación y 50 distribuciones sin colisiones: correctos.');
+const {panelsBatch}=require('./roll-core');
+const batch=panelsBatch({roll:120,margin:1,overlap:0,gap:5,orientation:'vertical',glasses:[{width:60,height:30,margin:''},{width:30,height:50,margin:2}]});
+assert.equal(batch.qty,2);near(batch.length,.865);near(batch.consumedArea,1.038);near(batch.glassArea,.33);assert.equal(batch.glassResults[1].margin,2);near(batch.placed[1].y,32.5);
+assert.throws(()=>panelsBatch({roll:120,glasses:[]}));
