@@ -46,13 +46,31 @@ function panels(p){
 }
 function panelsBatch(p){
  if(!Array.isArray(p.glasses)||!p.glasses.length)throw Error('Añade al menos un cristal.');
- if(p.glasses.length>1000)throw Error('Calcula hasta 1.000 cristales por partida.');
- const results=p.glasses.map(g=>panels({...p,width:g.width,height:g.height,qty:1,margin:g.margin===''||g.margin==null?p.margin:g.margin}));
- const gap=num(p.gap??0,'la separación')/10,placed=[];let offset=0;
- results.forEach((r,i)=>{if(i)offset+=gap;r.placed.forEach(c=>placed.push({...c,id:placed.length+1,label:'Cristal '+(i+1)+' · '+c.label.split(' · ').at(-1),y:c.y+offset}));offset+=r.length*100;});
- const sum=k=>results.reduce((a,r)=>a+r[k],0),alternative=k=>({length:results.reduce((a,r)=>a+r.alternatives[k].length,0)+(results.length-1)*gap/100});
- const orientation=results.every(r=>r.orientation===results[0].orientation)?results[0].orientation:'mixta';
- return {mode:'panels',roll:results[0].roll,margin:+p.margin||0,overlap:+p.overlap||0,gap,qty:results.length,orientation,glassResults:results,placed,pieceCount:placed.length,length:offset/100,consumedArea:results[0].roll*offset/10000,glassArea:sum('glassArea'),cutArea:sum('cutArea'),alternatives:{vertical:alternative('vertical'),horizontal:alternative('horizontal')}};
+ if(p.glasses.length>1000)throw Error('Calcula hasta 1.000 medidas por partida.');
+ const patterns=p.glasses.map((g,i)=>{
+  const qty=count(g.qty??1),common={...p,width:g.width,height:g.height,qty,margin:g.margin===''||g.margin==null?p.margin:g.margin};
+  return {vertical:panels({...common,orientation:'vertical'}),horizontal:panels({...common,orientation:'horizontal'})};
+ });
+ const qty=patterns.reduce((n,g)=>n+g.vertical.qty,0);
+ function layout(choices){
+  const results=patterns.map((g,i)=>g[choices[i]]);
+  const list=[];for(let i=0;i<results.length;i++)for(const c of results[i].placed)list.push({width:c.width,height:c.height,qty:1,label:'Cristal '+(i+1)+' · '+c.label});
+  if(list.length>20000)throw Error('Demasiados paños para una sola distribución.');
+  const packed=pack({roll:p.roll,gap:p.gap??5,margin:0,bleed:0,rotate:false,pieces:list});
+  const orientation=choices.every(c=>c===choices[0])?choices[0]:'mixta';
+  return {...packed,mode:'panels',margin:0,overlap:+p.overlap||0,qty,orientation,glassResults:results,glassArea:results.reduce((n,r)=>n+r.glassArea,0)};
+ }
+ const vertical=layout(patterns.map(()=>'vertical')),horizontal=layout(patterns.map(()=>'horizontal'));
+ let best=vertical.length<=horizontal.length?vertical:horizontal;
+ if(p.orientation==='vertical')best=vertical;
+ else if(p.orientation==='horizontal')best=horizontal;
+ else {
+  const choices=patterns.map(g=>g.vertical.length<=g.horizontal.length?'vertical':'horizontal');
+  const initial=layout(choices);if(initial.length<best.length)best=initial;
+  if(patterns.length<=8){for(let mask=0;mask<2**patterns.length;mask++){const trial=layout(patterns.map((_,i)=>(mask&(1<<i))?'horizontal':'vertical'));if(trial.length<best.length-1e-8)best=trial;}}
+  else if(patterns.length<=50){for(let i=0;i<patterns.length;i++){const test=[...choices];test[i]=test[i]==='vertical'?'horizontal':'vertical';const trial=layout(test);if(trial.length<best.length-1e-8){best=trial;choices[i]=test[i];}}}
+ }
+ return {...best,alternatives:{vertical:{length:vertical.length},horizontal:{length:horizontal.length}}};
 }
 root.OrdenProRoll={pack,panels,panelsBatch};if(typeof module!=='undefined')module.exports=root.OrdenProRoll;
 })(globalThis);

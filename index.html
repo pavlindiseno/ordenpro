@@ -3230,6 +3230,17 @@
         <p class="text-xs text-slate-400 mt-4">Las fotos y adjuntos se incluyen de momento en los registros. Google Drive se conectará en una fase posterior. Al cerrar sesión, los datos locales permanecen en este dispositivo.</p>
     </dialog>
     <script>
+        // Select existing contents; clear an initial numeric zero only on user focus.
+        function selectEntryValue(event) {
+            const field=event.target;
+            if (!(field instanceof HTMLInputElement) || field.readOnly || field.disabled || !['number','text','tel','email'].includes(field.type)) return;
+            if (field.type==='number' && field.value!=='' && Number(field.value)===0) {
+                field.value=''; field.dispatchEvent(new Event('input',{bubbles:true}));
+            }
+            field.select();
+        }
+        document.addEventListener('focusin',selectEntryValue);
+        document.addEventListener('click',selectEntryValue);
         window.ordenproData = {
             read: () => ({orders, quotes, invoices}),
             apply: data => {

@@ -18,5 +18,14 @@ for(let i=0;i<50;i++){const q=pack({roll:120,gap:10,bleed:2,margin:1,rotate:true
 console.log('Paños, márgenes, sangrado, separación, rotación y 50 distribuciones sin colisiones: correctos.');
 const {panelsBatch}=require('./roll-core');
 const batch=panelsBatch({roll:120,margin:1,overlap:0,gap:5,orientation:'vertical',glasses:[{width:60,height:30,margin:''},{width:30,height:50,margin:2}]});
-assert.equal(batch.qty,2);near(batch.length,.865);near(batch.consumedArea,1.038);near(batch.glassArea,.33);assert.equal(batch.glassResults[1].margin,2);near(batch.placed[1].y,32.5);
+assert.equal(batch.qty,2);near(batch.length,.54);near(batch.consumedArea,.648);near(batch.glassArea,.33);assert.equal(batch.glassResults[1].margin,2);geometry(batch);
 assert.throws(()=>panelsBatch({roll:120,glasses:[]}));
+
+const repeated=panelsBatch({roll:120,margin:0,overlap:0,gap:5,orientation:'best',glasses:[{width:60,height:30,margin:1,qty:3},{width:30,height:50,margin:0,qty:2}]});
+assert.equal(repeated.qty,5);geometry(repeated);
+assert.ok(repeated.length<=Math.min(repeated.alternatives.vertical.length,repeated.alternatives.horizontal.length)+1e-8);
+assert.throws(()=>panelsBatch({roll:120,glasses:[{width:60,height:30,qty:0}]}));
+const mixed=panelsBatch({roll:120,margin:0,overlap:0,gap:5,orientation:'best',glasses:[{width:60,height:100,qty:1},{width:80,height:50,qty:1}]});
+assert.equal(mixed.orientation,'mixta');near(mixed.length,1);geometry(mixed);
+assert.ok(mixed.length<mixed.alternatives.vertical.length);assert.ok(mixed.length<mixed.alternatives.horizontal.length);
+console.log('Cantidades por cristal y combinación mixta con menor consumo: correctas.');
