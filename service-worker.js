@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ordenpro-cache-v36-glass-quantities-mixed-layout';
+const CACHE_NAME = 'ordenpro-cache-v37-intact-margin-panels';
 
 // Archivos propios de la app: SIEMPRE deben poder cachearse (están en el mismo sitio)
 const LOCAL_ASSETS = [

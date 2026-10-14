@@ -29,3 +29,18 @@ const mixed=panelsBatch({roll:120,margin:0,overlap:0,gap:5,orientation:'best',gl
 assert.equal(mixed.orientation,'mixta');near(mixed.length,1);geometry(mixed);
 assert.ok(mixed.length<mixed.alternatives.vertical.length);assert.ok(mixed.length<mixed.alternatives.horizontal.length);
 console.log('Cantidades por cristal y combinación mixta con menor consumo: correctas.');
+// Regression: trimming must expand the complete glass before orientation is chosen.
+for(const roll of [100,120]){
+ const example=panelsBatch({roll,overlap:0,gap:5,orientation:'best',glasses:[{width:50,height:40,qty:2,margin:0},{width:70,height:100,qty:1,margin:2}]});
+ assert.equal(example.pieceCount,3);
+ const large=example.placed.find(p=>p.margin===2);assert.ok(large);
+ assert.ok((large.width===74&&large.height===104)||(large.width===104&&large.height===74));
+ assert.deepEqual(large.trim,{left:2,right:2,top:2,bottom:2});
+ assert.equal(large.overlapLeft,0);assert.equal(large.overlapRight,0);geometry(example);
+ assert.deepEqual(example.placed.map(p=>p.paño),[1,2,3]);
+}
+const seam=panelsBatch({roll:120,overlap:2,gap:5,orientation:'vertical',glasses:[{width:200,height:100,qty:1,margin:2}]});
+assert.equal(seam.pieceCount,2);
+assert.ok(seam.placed.some(p=>p.overlapLeft===2));assert.ok(seam.placed.some(p=>p.overlapRight===2));
+geometry(seam);
+console.log('Regression: whole 740×1040 mm glass, trimming metadata and lateral overlap bands passed');

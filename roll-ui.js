@@ -30,13 +30,27 @@ function invalidate(){last=null;$('roll_result').textContent='Pulsa Calcular par
 function read(){return {mode,roll:Number($('roll_roll').value)/10,glasses:clone(glasses),margin:0,width:Number($('roll_width').value)/10,height:Number($('roll_height').value)/10,qty:$('roll_qty').value,overlap:Number($('roll_overlap').value)/10,orientation:$('roll_orientation').value,gap:mode==='panels'?$('roll_panelGap').value:$('roll_gap').value,bleed:$('roll_bleed').value,rotate:$('roll_rotate').checked,pieces:clone(pieces)};}
 function diagram(r){
  const length=r.length*100,offset=12;
- const boxes=r.placed.slice(0,1500).map((p,i)=>'<rect x="'+(p.x+offset)+'" y="'+(p.y+offset)+'" width="'+p.width+'" height="'+p.height+'" fill="'+['#bae6fd','#bbf7d0','#fde68a','#ddd6fe'][((p.id||i)-1)%4]+'" stroke="#334155" stroke-width=".25"/>'+((p.width>10&&p.height>10&&r.placed.length<100)?'<text x="'+(p.x+offset+1)+'" y="'+(p.y+offset+Math.min(5,p.height/2))+'" font-size="3" fill="#0f172a">'+esc(p.id)+'</text>':'')).join('');
- return '<svg role="img" aria-label="Distribución de los cortes en la bobina" viewBox="0 0 '+(r.roll+24)+' '+(length+24)+'" style="display:block;width:100%;height:'+Math.max(160,Math.min(700,length/r.roll*450))+'px"><rect x="'+offset+'" y="'+offset+'" width="'+r.roll+'" height="'+length+'" fill="#f8fafc" stroke="#94a3b8" stroke-width=".3"/>'+boxes+'</svg><p style="color:#334155;padding:8px;font-size:12px">Ancho útil '+dec(r.roll*10)+' mm · Largo '+dec(r.length*1000)+' mm'+(r.placed.length>1500?' · Se muestran los primeros 1.500 cortes; los totales incluyen todos.':'')+'</p>';
+ const boxes=r.placed.slice(0,1500).map((p,i)=>{
+ const x=p.x+offset,y=p.y+offset,n=i+1,t=p.trim||{left:0,right:0,top:0,bottom:0};
+ let svg='<rect x="'+x+'" y="'+y+'" width="'+p.width+'" height="'+p.height+'" fill="'+['#bae6fd','#bbf7d0','#fde68a','#ddd6fe'][i%4]+'" stroke="#334155" stroke-width=".25"/>';
+ if(p.margin>0){
+  svg+='<rect data-mark="margin" x="'+x+'" y="'+y+'" width="'+p.width+'" height="'+p.height+'" fill="none" stroke="#dc2626" stroke-width=".6" stroke-dasharray="1.5 1"/>';
+  svg+='<rect x="'+(x+t.left)+'" y="'+(y+t.top)+'" width="'+Math.max(0,p.width-t.left-t.right)+'" height="'+Math.max(0,p.height-t.top-t.bottom)+'" fill="none" stroke="#dc2626" stroke-width=".25" opacity=".6"/>';
+ }
+ for(const [edge,band] of [['left',p.overlapLeft],['right',p.overlapRight]])if(band>0){
+  const lineX=edge==='left'?x+band:x+p.width-band;
+  svg+='<line data-mark="overlap" x1="'+lineX+'" x2="'+lineX+'" y1="'+y+'" y2="'+(y+p.height)+'" stroke="#111827" stroke-width=".5" stroke-dasharray="1.5 1"/>';
+ }
+ const font=Math.max(1.5,Math.min(5,p.width/8,p.height/4));
+ svg+='<text x="'+(x+p.width/2)+'" y="'+(y+p.height/2)+'" text-anchor="middle" dominant-baseline="middle" font-size="'+font+'" fill="#0f172a">Paño '+n+'</text>';
+ return svg;
+ }).join('');
+ return '<svg role="img" aria-label="Distribución de los cortes en la bobina" viewBox="0 0 '+(r.roll+24)+' '+(length+24)+'" style="display:block;width:100%;height:'+Math.max(160,Math.min(700,length/r.roll*450))+'px"><rect x="'+offset+'" y="'+offset+'" width="'+r.roll+'" height="'+length+'" fill="#f8fafc" stroke="#94a3b8" stroke-width=".3"/>'+boxes+'</svg><p style="color:#334155;padding:8px;font-size:12px">Ancho útil '+dec(r.roll*10)+' mm · Largo '+dec(r.length*1000)+' mm'+(r.placed.length>1500?' · Se muestran los primeros 1.500 cortes; los totales incluyen todos.':'')+'</p><p style="padding:8px;color:#334155;font-size:12px">Rojo punteado: límite de corte ampliado por el margen. Línea roja interior: superficie útil. Negro punteado lateral: zona de solape.</p>';
 }
 function calculate(){
  try{const p=read(),r=mode==='panels'?OrdenProRoll.panelsBatch(p):OrdenProRoll.pack(p);last={p,r};$('roll_result').innerHTML='<p><strong>'+dec(r.length*1000)+' mm lineales · '+dec(r.consumedArea)+' m² de bobina</strong></p><p>'+r.pieceCount+' piezas · Superficie del cristal/piezas: '+dec(r.glassArea)+' m² · Superficie de cortes: '+dec(r.cutArea)+' m²</p>'+(r.mode==='panels'?'<p>'+r.pieceCount+' paños en '+r.qty+' cristales · Orientación '+(r.orientation==='vertical'?'vertical':r.orientation==='horizontal'?'horizontal':'mixta')+'</p><p>Vertical: '+dec(r.alternatives.vertical.length*1000)+' mm · Horizontal: '+dec(r.alternatives.horizontal.length*1000)+' mm. Compara el sentido del material antes de elegir.</p>':'<p>Separación entre cortes: '+dec(Math.max(r.gap,2*r.bleed)*10)+' mm'+(r.bleed?' (incluye espacio suficiente para el sangrado)':'')+'. Se reserva el ancho completo de bobina.</p>');
  $('roll_diagram').innerHTML=diagram(r);const grouped=new Map();r.placed.forEach(c=>{const key=c.id+'|'+c.width+'|'+c.height;const g=grouped.get(key);if(g)g.qty++;else grouped.set(key,{...c,qty:1});});
- $('roll_cuts').innerHTML=[...grouped.values()].map(c=>'<p>'+c.qty+' × '+esc(c.label)+' · '+dec(c.width*10)+' × '+dec(c.height*10)+' mm</p>').join('');show('roll_cutList',true);return last;
+ $('roll_cuts').innerHTML=[...grouped.values()].map(c=>'<p>'+c.qty+' × '+'Paño '+(c.paño||c.id)+' · '+esc(c.label)+' · '+dec(c.width*10)+' × '+dec(c.height*10)+' mm</p>').join('');show('roll_cutList',true);return last;
  }catch(e){last=null;$('roll_result').textContent=e.message;$('roll_diagram').innerHTML='';show('roll_cutList',false);return null;}
 }
 function renderBudget(){ $('roll_budgetRows').innerHTML=draft.map((e,i)=>'<div class="bg-slate-900 rounded-lg p-2 my-2"><details><summary class="cursor-pointer text-sm">'+esc(e.label)+' · '+money(e.amount)+'</summary><p class="whitespace-pre-wrap text-xs mt-2">'+esc(e.notes)+'</p></details><div class="flex gap-3 text-xs mt-2"><button type="button" data-edit="'+i+'">Editar</button><button type="button" data-duplicate="'+i+'">Duplicar</button><button type="button" data-delete="'+i+'">Eliminar</button></div></div>').join('')||'<p class="text-xs text-slate-400">Ninguna partida añadida.</p>'; }

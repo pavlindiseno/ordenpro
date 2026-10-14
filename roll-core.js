@@ -36,7 +36,7 @@ function panels(p){
  if(n*qty>20000)throw Error('Demasiados paños para una sola distribución.');
  const widths=Array.from({length:n},(_,i)=>i===n-1?last:roll),placed=[];
  let y=0;
- for(let q=0;q<qty;q++)for(let i=0;i<n;i++){if(placed.length)y+=gap;placed.push({id:i+1,label:'Cristal '+(q+1)+' · Paño '+(i+1),x:0,y,width:widths[i],height:along});y+=along;}
+ for(let q=0;q<qty;q++)for(let i=0;i<n;i++){if(placed.length)y+=gap;placed.push({id:i+1,label:'Cristal '+(q+1)+' · Paño '+(i+1),x:0,y,width:widths[i],height:along,margin,trim:{left:i===0?margin:0,right:i===n-1?margin:0,top:margin,bottom:margin},overlapLeft:i>0?overlap:0,overlapRight:i<n-1?overlap:0});y+=along;}
  return {mode:'panels',orientation,roll,overlap,gap,margin,width,height,qty,targetW:W,targetH:H,panelsPerGlass:n,widths,placed,length:y/100,consumedArea:roll*y/10000,glassArea:width*height*qty/10000,cutArea:widths.reduce((s,w)=>s+w*along,0)*qty/10000,pieceCount:n*qty};
  }
  const vertical=option('vertical'),horizontal=option('horizontal');
@@ -54,9 +54,10 @@ function panelsBatch(p){
  const qty=patterns.reduce((n,g)=>n+g.vertical.qty,0);
  function layout(choices){
   const results=patterns.map((g,i)=>g[choices[i]]);
-  const list=[];for(let i=0;i<results.length;i++)for(const c of results[i].placed)list.push({width:c.width,height:c.height,qty:1,label:'Cristal '+(i+1)+' · '+c.label});
+  const list=[];for(let i=0;i<results.length;i++)for(const c of results[i].placed)list.push({width:c.width,height:c.height,qty:1,label:'Cristal '+(i+1)+' · '+c.label,margin:c.margin,trim:c.trim,overlapLeft:c.overlapLeft,overlapRight:c.overlapRight});
   if(list.length>20000)throw Error('Demasiados paños para una sola distribución.');
   const packed=pack({roll:p.roll,gap:p.gap??5,margin:0,bleed:0,rotate:false,pieces:list});
+  packed.placed=packed.placed.map((c,n)=>({...c,paño:n+1,margin:list[c.id-1].margin,trim:list[c.id-1].trim,overlapLeft:list[c.id-1].overlapLeft,overlapRight:list[c.id-1].overlapRight}));
   const orientation=choices.every(c=>c===choices[0])?choices[0]:'mixta';
   return {...packed,mode:'panels',margin:0,overlap:+p.overlap||0,qty,orientation,glassResults:results,glassArea:results.reduce((n,r)=>n+r.glassArea,0)};
  }
@@ -65,10 +66,11 @@ function panelsBatch(p){
  if(p.orientation==='vertical')best=vertical;
  else if(p.orientation==='horizontal')best=horizontal;
  else {
-  const choices=patterns.map(g=>g.vertical.length<=g.horizontal.length?'vertical':'horizontal');
-  const initial=layout(choices);if(initial.length<best.length)best=initial;
-  if(patterns.length<=8){for(let mask=0;mask<2**patterns.length;mask++){const trial=layout(patterns.map((_,i)=>(mask&(1<<i))?'horizontal':'vertical'));if(trial.length<best.length-1e-8)best=trial;}}
-  else if(patterns.length<=50){for(let i=0;i<patterns.length;i++){const test=[...choices];test[i]=test[i]==='vertical'?'horizontal':'vertical';const trial=layout(test);if(trial.length<best.length-1e-8){best=trial;choices[i]=test[i];}}}
+  const allowed=patterns.map(g=>g.vertical.panelsPerGlass===1&&g.horizontal.panelsPerGlass>1?['vertical']:g.horizontal.panelsPerGlass===1&&g.vertical.panelsPerGlass>1?['horizontal']:['vertical','horizontal']);
+  const choices=patterns.map((g,i)=>allowed[i].length===1?allowed[i][0]:g.vertical.length<=g.horizontal.length?'vertical':'horizontal');
+  best=layout(choices);
+  if(patterns.length<=8){for(let mask=0;mask<2**patterns.length;mask++){const trial=layout(patterns.map((_,i)=>allowed[i].length===1?allowed[i][0]:(mask&(1<<i))?'horizontal':'vertical'));if(trial.length<best.length-1e-8)best=trial;}}
+  else if(patterns.length<=50){for(let i=0;i<patterns.length;i++){if(allowed[i].length===1)continue;const test=[...choices];test[i]=test[i]==='vertical'?'horizontal':'vertical';const trial=layout(test);if(trial.length<best.length-1e-8){best=trial;choices[i]=test[i];}}}
  }
  return {...best,alternatives:{vertical:{length:vertical.length},horizontal:{length:horizontal.length}}};
 }
