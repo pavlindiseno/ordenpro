@@ -1,0 +1,15 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),core=require('./roll-core');
+const src=fs.readFileSync('roll-ui.js','utf8'),ctx={dec:n=>String(n),esc:s=>String(s)};
+vm.createContext(ctx);vm.runInContext(src.slice(src.indexOf('function diagram('),src.indexOf('function calculate(')),ctx);
+const r=core.panelsBatch({roll:25,overlap:0,gap:5,orientation:'vertical',glasses:[{width:100,height:100,qty:1,margin:0}]});
+assert.equal(r.pieceCount,4);
+for(let i=0;i<4;i++){assert.equal(r.placed[i].glassWidth,100);assert.equal(r.placed[i].glassHeight,100);assert.equal(r.placed[i].part,i+1);assert.equal(r.placed[i].parts,4);}
+const svg=ctx.diagram(r);
+for(let i=1;i<=4;i++){assert.ok(svg.includes('Paño '+i));assert.ok(svg.includes('Parte '+i+' de 4'));}
+assert.ok(svg.includes('Cristal 1000 × 1000 mm'));assert.ok(svg.includes('Corte: 250 × 1000 mm'));
+const overlap=core.panelsBatch({roll:120,overlap:2,gap:5,orientation:'vertical',glasses:[{width:200,height:100,qty:1,margin:2}]});
+const marked=ctx.diagram(overlap);
+assert.match(marked,/data-mark="margin-start"[^>]*stroke-dasharray/);
+assert.match(marked,/data-mark="overlap"[^>]*stroke="#111827"[^>]*stroke-dasharray/);
+assert.ok(marked.includes('Corte: 860 × 1040 mm'));assert.ok(marked.includes('Solape: 20 mm'));
+console.log('Diagram labels: source glass, part index, cut dimensions, dashed margin and overlap boundaries passed');

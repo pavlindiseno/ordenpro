@@ -36,7 +36,7 @@ function panels(p){
  if(n*qty>20000)throw Error('Demasiados paños para una sola distribución.');
  const widths=Array.from({length:n},(_,i)=>i===n-1?last:roll),placed=[];
  let y=0;
- for(let q=0;q<qty;q++)for(let i=0;i<n;i++){if(placed.length)y+=gap;placed.push({id:i+1,label:'Cristal '+(q+1)+' · Paño '+(i+1),x:0,y,width:widths[i],height:along,margin,trim:{left:i===0?margin:0,right:i===n-1?margin:0,top:margin,bottom:margin},overlapLeft:i>0?overlap:0,overlapRight:i<n-1?overlap:0});y+=along;}
+ for(let q=0;q<qty;q++)for(let i=0;i<n;i++){if(placed.length)y+=gap;placed.push({id:i+1,label:'Cristal '+(q+1)+' · Paño '+(i+1),x:0,y,width:widths[i],height:along,glassWidth:width,glassHeight:height,part:i+1,parts:n,copy:q+1,margin,trim:{left:i===0?margin:0,right:i===n-1?margin:0,top:margin,bottom:margin},overlapLeft:i>0?overlap:0,overlapRight:i<n-1?overlap:0});y+=along;}
  return {mode:'panels',orientation,roll,overlap,gap,margin,width,height,qty,targetW:W,targetH:H,panelsPerGlass:n,widths,placed,length:y/100,consumedArea:roll*y/10000,glassArea:width*height*qty/10000,cutArea:widths.reduce((s,w)=>s+w*along,0)*qty/10000,pieceCount:n*qty};
  }
  const vertical=option('vertical'),horizontal=option('horizontal');
@@ -54,10 +54,10 @@ function panelsBatch(p){
  const qty=patterns.reduce((n,g)=>n+g.vertical.qty,0);
  function layout(choices){
   const results=patterns.map((g,i)=>g[choices[i]]);
-  const list=[];for(let i=0;i<results.length;i++)for(const c of results[i].placed)list.push({width:c.width,height:c.height,qty:1,label:'Cristal '+(i+1)+' · '+c.label,margin:c.margin,trim:c.trim,overlapLeft:c.overlapLeft,overlapRight:c.overlapRight});
+  const list=[];for(let i=0;i<results.length;i++)for(const c of results[i].placed)list.push({width:c.width,height:c.height,qty:1,label:'Cristal '+(i+1)+' · Ejemplar '+c.copy+' · Parte '+c.part+'/'+c.parts,glassGroup:i+1,glassWidth:c.glassWidth,glassHeight:c.glassHeight,part:c.part,parts:c.parts,copy:c.copy,margin:c.margin,trim:c.trim,overlapLeft:c.overlapLeft,overlapRight:c.overlapRight});
   if(list.length>20000)throw Error('Demasiados paños para una sola distribución.');
   const packed=pack({roll:p.roll,gap:p.gap??5,margin:0,bleed:0,rotate:false,pieces:list});
-  packed.placed=packed.placed.map((c,n)=>({...c,paño:n+1,margin:list[c.id-1].margin,trim:list[c.id-1].trim,overlapLeft:list[c.id-1].overlapLeft,overlapRight:list[c.id-1].overlapRight}));
+  packed.placed=packed.placed.map((c,n)=>({...c,paño:n+1,glassGroup:list[c.id-1].glassGroup,glassWidth:list[c.id-1].glassWidth,glassHeight:list[c.id-1].glassHeight,part:list[c.id-1].part,parts:list[c.id-1].parts,copy:list[c.id-1].copy,margin:list[c.id-1].margin,trim:list[c.id-1].trim,overlapLeft:list[c.id-1].overlapLeft,overlapRight:list[c.id-1].overlapRight}));
   const orientation=choices.every(c=>c===choices[0])?choices[0]:'mixta';
   return {...packed,mode:'panels',margin:0,overlap:+p.overlap||0,qty,orientation,glassResults:results,glassArea:results.reduce((n,r)=>n+r.glassArea,0)};
  }
