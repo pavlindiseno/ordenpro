@@ -15,8 +15,8 @@ assert.equal(core.migrate({...q,result:{total:123.45}})[0].result.total,123.45);
 const els=new Map();const get=id=>{if(!els.has(id))els.set(id,{value:'',checked:false,style:{},hidden:false,dataset:{},innerHTML:'',querySelectorAll:()=>[],addEventListener(t,f){const old=this[t];this[t]=old?(...a)=>{old(...a);f(...a)}:f;}});return els.get(id)};
 let rows=[{name:'Montaje',amount:20}],c={OrdenProPlotter:core,document:{getElementById:get,createElement(){return {style:{},showModal(){},close(){}}},body:{append(){}}},confirm:()=>true,alert:()=>{},collectCustomCostRows:()=>rows,resetCustomCostRows:()=>rows=[],addCustomCostRow:r=>rows.push(r),updateCostTotals:()=>{}};
 c.window=c;vm.createContext(c);vm.runInContext(fs.readFileSync('plotter-ui.js','utf8'),c);
-c.ordenproPlotterUI.open();assert.equal(get('plt_eyeletBlock').hidden,true);get('plt_notes').value='Foto familiar <Galo>\nLienzo del salón';get('plt_form').onsubmit({preventDefault(){}});
-get('plt_tabs').click({target:{dataset:{category:'materials'}}});get('plt_product').value=index('Lona');get('plt_product').change();assert.equal(get('plt_eyeletBlock').hidden,false);get('plt_withEyelets').checked=true;get('plt_eyelets').value=8;get('plt_form').onsubmit({preventDefault(){}});
+c.ordenproPlotterUI.open();assert.equal(get('plt_qty').value,0);get('plt_qty').value=1;assert.equal(get('plt_eyeletBlock').hidden,true);get('plt_notes').value='Foto familiar <Galo>\nLienzo del salón';get('plt_form').onsubmit({preventDefault(){}});
+get('plt_tabs').click({target:{dataset:{category:'materials'}}});get('plt_product').value=index('Lona');get('plt_product').change();get('plt_qty').value=1;get('plt_width').value=1000;get('plt_height').value=1000;assert.equal(get('plt_eyeletBlock').hidden,false);get('plt_withEyelets').checked=true;get('plt_eyelets').value=8;get('plt_form').onsubmit({preventDefault(){}});
 get('plt_apply').onclick();assert.equal(rows.length,3);assert.equal(rows[1].amount,'25.00');assert.equal(rows[2].amount,'38.00');
 const saved=c.ordenproPlotterUI.readSaved();assert.equal(saved.version,2);assert.equal(saved.items.length,2);assert.equal(saved.items[0].notes,'Foto familiar <Galo>\nLienzo del salón');assert.equal(rows[1].notes,saved.items[0].notes);assert.ok(get('plt_items').innerHTML.includes('&lt;Galo&gt;'));
 c.ordenproPlotterUI.open();get('plt_apply').onclick();assert.equal(rows.length,3);
@@ -29,3 +29,4 @@ const values={costPhotocomposition:100,costManipulado:20,laborHours:2,laborPrice
 assert.equal(cost(values).total,248.4);assert.equal(cost({...values,discountPercent:100}).total,0);assert.equal(cost({...values,discountPercent:undefined}).total,276);
 for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))new vm.Script(m[1]);
 console.log('Product extras, multiline persistence, legacy preservation and final discount passed');
+

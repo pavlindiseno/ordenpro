@@ -1995,6 +1995,7 @@
             const form = document.getElementById('orderForm');
 
             form.reset();
+            document.getElementById('jobQuantity').value=0;
             window.ordenproMagazineUI?.load(null);
             window.ordenproPlotterUI?.load(null);
             window.ordenproRollUI?.load(null);
@@ -2135,7 +2136,7 @@
                     document.getElementById('jobTitle').focus();
                     return;
                 }
-                if (!document.getElementById('jobQuantity').value) {
+                if (Number(document.getElementById('jobQuantity').value)<=0) {
                     alert('Indica la cantidad/unidades para continuar.');
                     document.getElementById('jobQuantity').focus();
                     return;
@@ -2232,8 +2233,8 @@
         function vinylRowHtml(type, rowId, data = {}) {
             const brand = escapeHtml(data.brand || '');
             const color = escapeHtml(data.color || '');
-            const width = data.width || '';
-            const length = data.length || '';
+            const width = data.width ? +data.width*1000 : '';
+            const length = data.length ? +data.length*1000 : '';
             const price = data.price || '';
             return `
                 <div id="row_${type}_${rowId}" class="bg-slate-800/60 p-2 rounded-lg border border-slate-700/50 space-y-1.5">
@@ -2243,8 +2244,8 @@
                         <button type="button" onclick="removeVinylRow('${type}','${rowId}')" class="text-rose-400 hover:text-rose-300 px-2"><i class="fa-solid fa-trash-can text-xs"></i></button>
                     </div>
                     <div class="grid grid-cols-3 gap-1.5">
-                        <input type="number" step="0.01" min="0" placeholder="Ancho m" value="${width}" oninput="updateCostTotals()" data-field="width" data-row="${type}_${rowId}" class="cost-field bg-slate-900 border border-slate-700 rounded p-1.5 text-slate-100 text-xs focus:border-emerald-500 focus:outline-none">
-                        <input type="number" step="0.01" min="0" placeholder="Largo m" value="${length}" oninput="updateCostTotals()" data-field="length" data-row="${type}_${rowId}" class="cost-field bg-slate-900 border border-slate-700 rounded p-1.5 text-slate-100 text-xs focus:border-emerald-500 focus:outline-none">
+                        <input type="number" step="0.01" min="0" placeholder="Ancho mm" value="${width}" oninput="updateCostTotals()" data-field="width" data-row="${type}_${rowId}" class="cost-field bg-slate-900 border border-slate-700 rounded p-1.5 text-slate-100 text-xs focus:border-emerald-500 focus:outline-none">
+                        <input type="number" step="0.01" min="0" placeholder="Largo mm" value="${length}" oninput="updateCostTotals()" data-field="length" data-row="${type}_${rowId}" class="cost-field bg-slate-900 border border-slate-700 rounded p-1.5 text-slate-100 text-xs focus:border-emerald-500 focus:outline-none">
                         <input type="number" step="0.01" min="0" placeholder="€/m²" value="${price}" oninput="updateCostTotals()" data-field="price" data-row="${type}_${rowId}" class="cost-field bg-slate-900 border border-slate-700 rounded p-1.5 text-slate-100 text-xs focus:border-emerald-500 focus:outline-none">
                     </div>
                     <div class="text-right text-[11px] text-slate-500">Importe: <span data-amount="${type}_${rowId}" class="text-slate-300 font-semibold">0.00 €</span></div>
@@ -2337,7 +2338,7 @@
 
         function getVinylRowField(type, rowId, field) {
             const el = document.querySelector(`[data-row="${type}_${rowId}"][data-field="${field}"]`);
-            return el ? el.value : '';
+            return el ? (['width','length'].includes(field)&&type!=='customCost'?Number(el.value)/1000:el.value) : '';
         }
 
         // Calcula (y pinta en pantalla) el total de un tipo de vinilo sumando todas sus filas
@@ -2489,7 +2490,7 @@
                 goToStep(1);
                 return;
             }
-            if (!document.getElementById('jobTitle').value.trim() || !document.getElementById('jobQuantity').value) {
+            if (!document.getElementById('jobTitle').value.trim() || Number(document.getElementById('jobQuantity').value)<=0) {
                 alert('Falta el título del trabajo o la cantidad.');
                 goToStep(2);
                 return;
@@ -2781,7 +2782,7 @@
                     const amount = w * l * p;
                     if (Math.abs(amount) < 0.005) return;
                     const brandColor = [row.brand, row.color].filter(Boolean).join(' ');
-                    vinylHtml += `<div class="flex justify-between text-slate-600"><span>${vinylLabels[key]}${brandColor ? ' — ' + escapeHtml(brandColor) : ''} (${w}×${l}m)</span><span class="font-medium text-slate-800">${amount.toFixed(2)} €</span></div>`;
+                    vinylHtml += `<div class="flex justify-between text-slate-600"><span>${vinylLabels[key]}${brandColor ? ' — ' + escapeHtml(brandColor) : ''} (${w*1000} × ${l*1000} mm)</span><span class="font-medium text-slate-800">${amount.toFixed(2)} €</span></div>`;
                 });
             });
             (order.customCostRows || []).forEach(row => {
