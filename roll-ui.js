@@ -34,7 +34,9 @@ function diagram(r){
  const length=r.length*100,offset=Math.max(1,Math.min(12,r.roll*.03));
  const boxes=r.placed.slice(0,1500).map((p,i)=>{
  const x=p.x+offset,y=p.y+offset,n=i+1,t=p.trim||{left:0,right:0,top:0,bottom:0};
- let svg='<rect x="'+x+'" y="'+y+'" width="'+p.width+'" height="'+p.height+'" fill="'+['#bae6fd','#bbf7d0','#fde68a','#ddd6fe'][((p.glassGroup??p.id??i+1)-1)%4]+'" stroke="#334155" stroke-width=".25"/>';
+ const bleed=r.mode==='pieces'?(r.bleed||0):0;
+ let svg='<rect data-mark="bleed-area" x="'+(x-bleed)+'" y="'+(y-bleed)+'" width="'+(p.width+2*bleed)+'" height="'+(p.height+2*bleed)+'" fill="'+['#bae6fd','#bbf7d0','#fde68a','#ddd6fe'][((p.glassGroup??p.id??i+1)-1)%4]+'" stroke="#334155" stroke-width=".25"/>';
+ if(bleed>0)svg+='<rect data-mark="bleed-cut" x="'+x+'" y="'+y+'" width="'+p.width+'" height="'+p.height+'" fill="none" stroke="#dc2626" stroke-width=".65" stroke-dasharray="1.5 1"/>';
  if(p.margin>0){
   svg+='<rect x="'+(x+t.left)+'" y="'+(y+t.top)+'" width="'+Math.max(0,p.width-t.left-t.right)+'" height="'+Math.max(0,p.height-t.top-t.bottom)+'" fill="none" stroke="#dc2626" data-mark="margin-start" stroke-width=".65" stroke-dasharray="1.5 1"/>';
  }
@@ -46,6 +48,7 @@ function diagram(r){
  const lines=[p.glassWidth!=null?'Cristal '+size(p.glassWidth,p.glassHeight):'Pieza '+size(p.sourceW??p.width,p.sourceH??p.height),'Paño '+n];
  if(p.part!=null)lines.push('Parte '+p.part+' de '+p.parts+(p.copy>1?' · Ejemplar '+p.copy:''));
  lines.push('Corte: '+size(p.width,p.height));
+ if(bleed>0){lines.push('Sangrado: '+dec(bleed*10)+' mm por lado');lines.push('Impresión: '+size(p.width+2*bleed,p.height+2*bleed));}
  if(p.margin>0)lines.push('Margen: '+dec(p.margin*10)+' mm');
  if(p.overlapLeft||p.overlapRight)lines.push('Solape: '+dec(Math.max(p.overlapLeft||0,p.overlapRight||0)*10)+' mm');
  const longest=Math.max(...lines.map(s=>s.length));
@@ -55,7 +58,7 @@ function diagram(r){
  svg+='<text x="'+(x+p.width/2)+'" y="'+firstY+'" text-anchor="middle" dominant-baseline="middle" font-size="'+font+'" fill="#0f172a">'+lines.map((line,j)=>'<tspan x="'+(x+p.width/2)+'" dy="'+(j?lineHeight:0)+'" font-weight="'+(j===0?'700':'400')+'">'+esc(line)+'</tspan>').join('')+'</text>';
  return svg;
  }).join('');
- return '<svg role="img" aria-label="Distribución de los cortes en la bobina" viewBox="0 0 '+(r.roll+2*offset)+' '+(length+2*offset)+'" style="display:block;width:100%;height:auto"><rect x="'+offset+'" y="'+offset+'" width="'+r.roll+'" height="'+length+'" fill="#f8fafc" stroke="#94a3b8" stroke-width=".3"/>'+boxes+'</svg><p style="color:#334155;padding:8px;font-size:12px">Ancho útil '+dec(r.roll*10)+' mm · Largo '+dec(r.length*1000)+' mm'+(r.placed.length>1500?' · Se muestran los primeros 1.500 cortes; los totales incluyen todos.':'')+'</p><p style="padding:8px;color:#334155;font-size:12px">Desplaza el esquema para ver todos los paños. Rojo punteado interior: donde empieza el margen añadido; el contorno exterior es el corte total. Negro punteado lateral: donde empieza la franja de solape; continúa hasta el borde con el mismo relleno.</p>';
+ return '<svg role="img" aria-label="Distribución de los cortes en la bobina" viewBox="0 0 '+(r.roll+2*offset)+' '+(length+2*offset)+'" style="display:block;width:100%;height:auto"><rect x="'+offset+'" y="'+offset+'" width="'+r.roll+'" height="'+length+'" fill="#f8fafc" stroke="#94a3b8" stroke-width=".3"/>'+boxes+'</svg><p style="color:#334155;padding:8px;font-size:12px">Ancho útil '+dec(r.roll*10)+' mm · Largo '+dec(r.length*1000)+' mm'+(r.placed.length>1500?' · Se muestran los primeros 1.500 cortes; los totales incluyen todos.':'')+'</p><p style="padding:8px;color:#334155;font-size:12px">Desplaza el esquema para ver todos los paños. Rojo punteado interior: límite de corte de la etiqueta con sangrado, o donde empieza el margen añadido del cristal; el relleno exterior muestra el material ampliado. Negro punteado lateral: donde empieza la franja de solape; continúa hasta el borde con el mismo relleno.</p>';
 }
 function panelSummary(r){
  const groups=new Map();

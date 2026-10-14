@@ -18,3 +18,11 @@ assert.ok(!marked.includes('data-mark="margin"'));
 assert.ok(svg.indexOf('Cristal 1000 × 1000 mm')<svg.indexOf('Paño 1'));
 assert.ok(ctx.panelSummary(r).includes('4 paños de 250 × 1000 mm'));
 assert.ok(ctx.panelSummary(overlap).includes('1 paño de 1200 × 1040 mm + 1 paño de 860 × 1040 mm'));
+
+const pieces=core.pack({roll:12,gap:5,bleed:2,rotate:true,pieces:[{width:5,height:3,qty:2}]});
+const bsvg=ctx.diagram(pieces);
+assert.equal((bsvg.match(/data-mark="bleed-cut"/g)||[]).length,2);
+assert.match(bsvg,/data-mark="bleed-cut"[^>]*stroke="#dc2626"[^>]*stroke-dasharray/);
+assert.ok(bsvg.includes('Sangrado: 2 mm por lado'));
+assert.ok(bsvg.includes('Impresión: 54 × 34 mm')||bsvg.includes('Impresión: 34 × 54 mm'));
+assert.ok(!ctx.diagram(core.pack({roll:12,gap:5,bleed:0,pieces:[{width:5,height:3,qty:1}]})).includes('data-mark="bleed-cut"'));

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ordenpro-cache-v39-panel-cut-summary';
+const CACHE_NAME = 'ordenpro-cache-v40-piece-bleed-preview';
 
 // Archivos propios de la app: SIEMPRE deben poder cachearse (están en el mismo sitio)
 const LOCAL_ASSETS = [
