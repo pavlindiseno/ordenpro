@@ -14,17 +14,37 @@ function pack(p){
  for(const r of pieces)if(r.fw>roll+1e-8&&(!p.rotate||r.fh>roll+1e-8))throw Error(r.label+': no cabe en el ancho útil. Cambia la orientación o calcula el cristal por paños.');
  const orders=[(a,b)=>b.fh-a.fh||b.fw-a.fw,(a,b)=>b.fw-a.fw||b.fh-a.fh,(a,b)=>b.fw*b.fh-a.fw*a.fh,(a,b)=>Math.max(b.fw,b.fh)-Math.max(a.fw,a.fh)];
  let best=null;
- for(const order of orders){
+ for(const order of orders)for(const rowStrategy of (p.rotate?['short','tall','density']:['short'])){
  const shelves=[],placed=[];let bottom=0;
  for(const r of [...pieces].sort(order)){
  const opts=[{w:r.fw,h:r.fh,turned:false}];if(p.rotate&&r.fw!==r.fh)opts.push({w:r.fh,h:r.fw,turned:true});
  let chosen=null;
  for(const opt of opts){if(opt.w>roll+1e-8)continue;for(let i=0;i<shelves.length;i++){const row=shelves[i],x=row.used+(row.used?space:0);if(opt.h<=row.h+1e-8&&x+opt.w<=roll+1e-8){const score=(row.h-opt.h)*roll+(roll-x-opt.w);if(!chosen||score<chosen.score)chosen={...opt,row,x,score};}}}
- if(!chosen){const opt=opts.filter(o=>o.w<=roll+1e-8).sort((a,b)=>a.h-b.h||b.w-a.w)[0];const row={y:bottom+(shelves.length?space:0),h:opt.h,used:0};shelves.push(row);bottom=row.y+row.h;chosen={...opt,row,x:0};}
+ if(!chosen){const opt=opts.filter(o=>o.w<=roll+1e-8).sort((a,b)=>rowStrategy==='tall'?b.h-a.h||b.w-a.w:rowStrategy==='density'?(Math.floor((roll+space)/(b.w+space))*b.w-Math.floor((roll+space)/(a.w+space))*a.w)||a.h-b.h:a.h-b.h||b.w-a.w)[0];const row={y:bottom+(shelves.length?space:0),h:opt.h,used:0};shelves.push(row);bottom=row.y+row.h;chosen={...opt,row,x:0};}
  const {row,x,w,h,turned}=chosen;placed.push({...r,x:x+bleed,y:row.y+bleed,width:w-2*bleed,height:h-2*bleed,turned});row.used=x+w;
  }
  const result={mode:'pieces',roll,gap,margin,bleed,placed,length:bottom/100,consumedArea:roll*bottom/10000,glassArea,pieceCount:pieces.length,cutArea:pieces.reduce((n,r)=>n+r.w*r.h/10000,0)};
  if(!best||result.length<best.length-1e-8)best=result;
+ }
+ // Also fill free corners instead of restricting every cut to a shelf.
+ // Keep large production runs on the scalable shelf search.
+ if(pieces.length<=80)for(const order of orders)for(const preferTall of (p.rotate?[false,true]:[false])){
+  const occupied=[],placed=[];let bottom=0;
+  for(const r of [...pieces].sort(order)){
+   const opts=[{w:r.fw,h:r.fh,turned:false}];
+   if(p.rotate&&r.fw!==r.fh)opts.push({w:r.fh,h:r.fw,turned:true});
+   const xs=[0,...occupied.map(b=>b.x+b.w+space)],ys=[0,...occupied.map(b=>b.y+b.h+space)];
+   let chosen=null;
+   for(const opt of opts)if(opt.w<=roll+1e-8)for(const y of ys)for(const x of xs){
+    if(x+opt.w>roll+1e-8)continue;
+    if(occupied.some(b=>!(x+opt.w+space<=b.x+1e-8||b.x+b.w+space<=x+1e-8||y+opt.h+space<=b.y+1e-8||b.y+b.h+space<=y+1e-8)))continue;
+    const score=[!occupied.length&&preferTall?-opt.h:Math.max(bottom,y+opt.h),y,x];
+    if(!chosen||score[0]<chosen.score[0]-1e-8||Math.abs(score[0]-chosen.score[0])<1e-8&&(score[1]<chosen.score[1]-1e-8||Math.abs(score[1]-chosen.score[1])<1e-8&&score[2]<chosen.score[2]-1e-8))chosen={...opt,x,y,score};
+   }
+   occupied.push(chosen);bottom=Math.max(bottom,chosen.y+chosen.h);
+   placed.push({...r,x:chosen.x+bleed,y:chosen.y+bleed,width:chosen.w-2*bleed,height:chosen.h-2*bleed,turned:chosen.turned});
+  }
+  if(bottom/100<best.length-1e-8)best={...best,placed,length:bottom/100,consumedArea:roll*bottom/10000};
  }
  return best;
 }
@@ -52,16 +72,22 @@ function panelsBatch(p){
   return {vertical:panels({...common,orientation:'vertical'}),horizontal:panels({...common,orientation:'horizontal'})};
  });
  const qty=patterns.reduce((n,g)=>n+g.vertical.qty,0);
- function layout(choices){
+ function layout(choices,rotate=p.orientation!=='vertical'&&p.orientation!=='horizontal'){
   const results=patterns.map((g,i)=>g[choices[i]]);
   const list=[];for(let i=0;i<results.length;i++)for(const c of results[i].placed)list.push({width:c.width,height:c.height,qty:1,label:'Cristal '+(i+1)+' · Ejemplar '+c.copy+' · Parte '+c.part+'/'+c.parts,glassGroup:i+1,glassWidth:c.glassWidth,glassHeight:c.glassHeight,part:c.part,parts:c.parts,copy:c.copy,margin:c.margin,trim:c.trim,overlapLeft:c.overlapLeft,overlapRight:c.overlapRight});
   if(list.length>20000)throw Error('Demasiados paños para una sola distribución.');
-  const packed=pack({roll:p.roll,gap:p.gap??5,margin:0,bleed:0,rotate:false,pieces:list});
+  const packed=pack({roll:p.roll,gap:p.gap??5,margin:0,bleed:0,rotate,pieces:list});
   packed.placed=packed.placed.map((c,n)=>({...c,paño:n+1,glassGroup:list[c.id-1].glassGroup,glassWidth:list[c.id-1].glassWidth,glassHeight:list[c.id-1].glassHeight,part:list[c.id-1].part,parts:list[c.id-1].parts,copy:list[c.id-1].copy,margin:list[c.id-1].margin,trim:list[c.id-1].trim,overlapLeft:list[c.id-1].overlapLeft,overlapRight:list[c.id-1].overlapRight}));
-  const orientation=choices.every(c=>c===choices[0])?choices[0]:'mixta';
-  return {...packed,mode:'panels',margin:0,overlap:+p.overlap||0,qty,orientation,glassResults:results,glassArea:results.reduce((n,r)=>n+r.glassArea,0)};
+  packed.placed=packed.placed.map(c=>{
+   if(!c.turned)return c;
+   const t=c.trim;
+   return {...c,trim:{left:t.bottom,right:t.top,top:t.left,bottom:t.right},overlapTop:c.overlapLeft,overlapBottom:c.overlapRight,overlapLeft:0,overlapRight:0};
+  });
+  const actual=packed.placed.map(c=>c.turned?(choices[c.glassGroup-1]==='vertical'?'horizontal':'vertical'):choices[c.glassGroup-1]);
+  const orientation=actual.every(c=>c===actual[0])?actual[0]:'mixta';
+  return {...packed,mode:'panels',margin:0,overlap:+p.overlap||0,qty,orientation,glassResults:results.map((r,i)=>{const dirs=packed.placed.filter(c=>c.glassGroup===i+1).map(c=>c.turned?(choices[i]==='vertical'?'horizontal':'vertical'):choices[i]);return {...r,orientation:dirs.every(d=>d===dirs[0])?dirs[0]:'mixta'};}),glassArea:results.reduce((n,r)=>n+r.glassArea,0)};
  }
- const vertical=layout(patterns.map(()=>'vertical')),horizontal=layout(patterns.map(()=>'horizontal'));
+ const vertical=layout(patterns.map(()=>'vertical'),false),horizontal=layout(patterns.map(()=>'horizontal'),false);
  let best=vertical.length<=horizontal.length?vertical:horizontal;
  if(p.orientation==='vertical')best=vertical;
  else if(p.orientation==='horizontal')best=horizontal;

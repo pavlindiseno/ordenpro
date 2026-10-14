@@ -26,3 +26,7 @@ assert.match(bsvg,/data-mark="bleed-cut"[^>]*stroke="#dc2626"[^>]*stroke-dasharr
 assert.ok(bsvg.includes('Sangrado: 2 mm por lado'));
 assert.ok(bsvg.includes('Impresión: 54 × 34 mm')||bsvg.includes('Impresión: 34 × 54 mm'));
 assert.ok(!ctx.diagram(core.pack({roll:12,gap:5,bleed:0,pieces:[{width:5,height:3,qty:1}]})).includes('data-mark="bleed-cut"'));
+
+const rotatedDiagram=ctx.diagram({mode:'panels',roll:120,length:1,placed:[{x:0,y:0,width:100,height:80,glassWidth:200,glassHeight:100,part:2,parts:2,margin:2,trim:{left:2,right:2,top:0,bottom:2},overlapTop:2,overlapBottom:0}]});
+assert.match(rotatedDiagram,/data-mark="overlap" x1="[^"]+" x2="[^"]+" y1="5.6" y2="5.6"/);
+assert.ok(rotatedDiagram.includes('Solape: 20 mm'));

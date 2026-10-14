@@ -44,3 +44,13 @@ assert.equal(seam.pieceCount,2);
 assert.ok(seam.placed.some(p=>p.overlapLeft===2));assert.ok(seam.placed.some(p=>p.overlapRight===2));
 geometry(seam);
 console.log('Regression: whole 740×1040 mm glass, trimming metadata and lateral overlap bands passed');
+
+const mixedCopies=pack({roll:100,gap:0,rotate:true,pieces:[{width:60,height:40,qty:3}]});
+near(mixedCopies.length,.8);geometry(mixedCopies);
+assert.ok(mixedCopies.placed.some(p=>p.turned)&&mixedCopies.placed.some(p=>!p.turned));
+const mixedGlasses=panelsBatch({roll:100,gap:0,overlap:0,orientation:'best',glasses:[{width:60,height:40,qty:3}]});
+near(mixedGlasses.length,.8);geometry(mixedGlasses);assert.equal(mixedGlasses.orientation,'mixta');
+const turnedSeams=panelsBatch({roll:120,gap:5,overlap:2,orientation:'best',glasses:[{width:200,height:40,qty:2,margin:1}]});
+geometry(turnedSeams);
+for(const p of turnedSeams.placed)if(p.turned){assert.equal(p.overlapLeft,0);assert.equal(p.overlapRight,0);assert.ok(p.trim);}
+console.log('Mixed copies and free-corner packing: three 600×400 cuts in 1000×800 mm passed');
