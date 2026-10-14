@@ -13,3 +13,8 @@ assert.match(marked,/data-mark="margin-start"[^>]*stroke-dasharray/);
 assert.match(marked,/data-mark="overlap"[^>]*stroke="#111827"[^>]*stroke-dasharray/);
 assert.ok(marked.includes('Corte: 860 × 1040 mm'));assert.ok(marked.includes('Solape: 20 mm'));
 console.log('Diagram labels: source glass, part index, cut dimensions, dashed margin and overlap boundaries passed');
+
+assert.ok(!marked.includes('data-mark="margin"'));
+assert.ok(svg.indexOf('Cristal 1000 × 1000 mm')<svg.indexOf('Paño 1'));
+assert.ok(ctx.panelSummary(r).includes('4 paños de 250 × 1000 mm'));
+assert.ok(ctx.panelSummary(overlap).includes('1 paño de 1200 × 1040 mm + 1 paño de 860 × 1040 mm'));

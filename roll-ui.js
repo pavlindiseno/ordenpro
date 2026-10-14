@@ -36,7 +36,6 @@ function diagram(r){
  const x=p.x+offset,y=p.y+offset,n=i+1,t=p.trim||{left:0,right:0,top:0,bottom:0};
  let svg='<rect x="'+x+'" y="'+y+'" width="'+p.width+'" height="'+p.height+'" fill="'+['#bae6fd','#bbf7d0','#fde68a','#ddd6fe'][((p.glassGroup??p.id??i+1)-1)%4]+'" stroke="#334155" stroke-width=".25"/>';
  if(p.margin>0){
-  svg+='<rect data-mark="margin" x="'+x+'" y="'+y+'" width="'+p.width+'" height="'+p.height+'" fill="none" stroke="#dc2626" stroke-width=".6" stroke-dasharray="1.5 1"/>';
   svg+='<rect x="'+(x+t.left)+'" y="'+(y+t.top)+'" width="'+Math.max(0,p.width-t.left-t.right)+'" height="'+Math.max(0,p.height-t.top-t.bottom)+'" fill="none" stroke="#dc2626" data-mark="margin-start" stroke-width=".65" stroke-dasharray="1.5 1"/>';
  }
  for(const [edge,band] of [['left',p.overlapLeft],['right',p.overlapRight]])if(band>0){
@@ -44,7 +43,7 @@ function diagram(r){
   svg+='<line data-mark="overlap" x1="'+lineX+'" x2="'+lineX+'" y1="'+y+'" y2="'+(y+p.height)+'" stroke="#111827" stroke-width=".65" stroke-dasharray="1.5 1"/>';
  }
  const size=(w,h)=>dec(w*10)+' × '+dec(h*10)+' mm';
- const lines=['Paño '+n,p.glassWidth!=null?'Cristal '+size(p.glassWidth,p.glassHeight):'Pieza '+size(p.sourceW??p.width,p.sourceH??p.height)];
+ const lines=[p.glassWidth!=null?'Cristal '+size(p.glassWidth,p.glassHeight):'Pieza '+size(p.sourceW??p.width,p.sourceH??p.height),'Paño '+n];
  if(p.part!=null)lines.push('Parte '+p.part+' de '+p.parts+(p.copy>1?' · Ejemplar '+p.copy:''));
  lines.push('Corte: '+size(p.width,p.height));
  if(p.margin>0)lines.push('Margen: '+dec(p.margin*10)+' mm');
@@ -58,8 +57,18 @@ function diagram(r){
  }).join('');
  return '<svg role="img" aria-label="Distribución de los cortes en la bobina" viewBox="0 0 '+(r.roll+2*offset)+' '+(length+2*offset)+'" style="display:block;width:100%;height:auto"><rect x="'+offset+'" y="'+offset+'" width="'+r.roll+'" height="'+length+'" fill="#f8fafc" stroke="#94a3b8" stroke-width=".3"/>'+boxes+'</svg><p style="color:#334155;padding:8px;font-size:12px">Ancho útil '+dec(r.roll*10)+' mm · Largo '+dec(r.length*1000)+' mm'+(r.placed.length>1500?' · Se muestran los primeros 1.500 cortes; los totales incluyen todos.':'')+'</p><p style="padding:8px;color:#334155;font-size:12px">Desplaza el esquema para ver todos los paños. Rojo punteado interior: donde empieza el margen añadido; el contorno exterior es el corte total. Negro punteado lateral: donde empieza la franja de solape; continúa hasta el borde con el mismo relleno.</p>';
 }
+function panelSummary(r){
+ const groups=new Map();
+ for(const p of r.placed){
+  const key=p.glassGroup||1;
+  if(!groups.has(key))groups.set(key,{width:p.glassWidth,height:p.glassHeight,cuts:new Map()});
+  const g=groups.get(key),cut=dec(p.width*10)+' × '+dec(p.height*10)+' mm';
+  g.cuts.set(cut,(g.cuts.get(cut)||0)+1);
+ }
+ return [...groups.values()].map(g=>'<p>Para el cristal de '+dec(g.width*10)+' × '+dec(g.height*10)+' mm: '+[...g.cuts].map(([size,qty])=>qty+' '+(qty===1?'paño':'paños')+' de '+size).join(' + ')+'.</p>').join('')+'<p class="text-xs text-slate-400">Medidas de corte: incluyen los márgenes y solapes añadidos.</p>';
+}
 function calculate(){
- try{const p=read(),r=mode==='panels'?OrdenProRoll.panelsBatch(p):OrdenProRoll.pack(p);last={p,r};$('roll_result').innerHTML='<p><strong>'+dec(r.length*1000)+' mm lineales · '+dec(r.consumedArea)+' m² de bobina</strong></p><p>'+r.pieceCount+' piezas · Superficie del cristal/piezas: '+dec(r.glassArea)+' m² · Superficie de cortes: '+dec(r.cutArea)+' m²</p>'+(r.mode==='panels'?'<p>'+r.pieceCount+' paños en '+r.qty+' cristales · Orientación '+(r.orientation==='vertical'?'vertical':r.orientation==='horizontal'?'horizontal':'mixta')+'</p><p>Vertical: '+dec(r.alternatives.vertical.length*1000)+' mm · Horizontal: '+dec(r.alternatives.horizontal.length*1000)+' mm. Compara el sentido del material antes de elegir.</p>':'<p>Separación entre cortes: '+dec(Math.max(r.gap,2*r.bleed)*10)+' mm'+(r.bleed?' (incluye espacio suficiente para el sangrado)':'')+'. Se reserva el ancho completo de bobina.</p>');
+ try{const p=read(),r=mode==='panels'?OrdenProRoll.panelsBatch(p):OrdenProRoll.pack(p);last={p,r};$('roll_result').innerHTML='<p><strong>'+dec(r.length*1000)+' mm lineales · '+dec(r.consumedArea)+' m² de bobina</strong></p><p>'+r.pieceCount+' piezas · Superficie del cristal/piezas: '+dec(r.glassArea)+' m² · Superficie de cortes: '+dec(r.cutArea)+' m²</p>'+(r.mode==='panels'?'<p>'+r.pieceCount+' paños en '+r.qty+' cristales · Orientación '+(r.orientation==='vertical'?'vertical':r.orientation==='horizontal'?'horizontal':'mixta')+'</p>'+panelSummary(r)+'<p>Largo de bobina con paños verticales: '+dec(r.alternatives.vertical.length*1000)+' mm.</p><p>Largo de bobina con paños horizontales: '+dec(r.alternatives.horizontal.length*1000)+' mm.</p><p class="text-xs text-slate-400">Son dos alternativas para el mismo trabajo: no se suman. El consumo elegido es el indicado arriba. Vertical/horizontal describe el sentido de los paños sobre el cristal.</p>':'<p>Separación entre cortes: '+dec(Math.max(r.gap,2*r.bleed)*10)+' mm'+(r.bleed?' (incluye espacio suficiente para el sangrado)':'')+'. Se reserva el ancho completo de bobina.</p>');
  $('roll_diagram').innerHTML=diagram(r);const grouped=new Map();r.placed.forEach(c=>{const key=c.id+'|'+c.width+'|'+c.height;const g=grouped.get(key);if(g)g.qty++;else grouped.set(key,{...c,qty:1});});
  $('roll_cuts').innerHTML=[...grouped.values()].map(c=>'<p>'+c.qty+' × '+'Paño '+(c.paño||c.id)+' · '+esc(c.label)+(c.glassWidth!=null?' · Cristal '+dec(c.glassWidth*10)+' × '+dec(c.glassHeight*10)+' mm':'')+' · Corte: '+dec(c.width*10)+' × '+dec(c.height*10)+' mm</p>').join('');show('roll_cutList',true);return last;
  }catch(e){last=null;$('roll_result').textContent=e.message;$('roll_diagram').innerHTML='';show('roll_cutList',false);return null;}
