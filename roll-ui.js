@@ -40,9 +40,9 @@ function diagram(r){
  const bleed=r.mode==='pieces'?(p.bleed??r.bleed??0):0;
  const fill=['#bae6fd','#bbf7d0','#fde68a','#ddd6fe'][((p.glassGroup??p.id??i+1)-1)%4];
  let svg=contour('data-mark="bleed-area" fill="'+fill+'" stroke="#334155" stroke-width=".25" vector-effect="non-scaling-stroke"',x-bleed,y-bleed,p.width+2*bleed,p.height+2*bleed);
- if(bleed>0)svg+=contour('data-mark="bleed-cut" fill="none" stroke="#dc2626" stroke-width=".25" vector-effect="non-scaling-stroke" stroke-dasharray=".01 1.5" stroke-linecap="round"',x,y,p.width,p.height);
+ if(bleed>0)svg+=contour('data-mark="bleed-cut" fill="none" stroke="#dc2626" stroke-width=".25" vector-effect="non-scaling-stroke" stroke-dasharray="2 2"',x,y,p.width,p.height);
  if(p.margin>0){
-  svg+='<rect x="'+(x+t.left)+'" y="'+(y+t.top)+'" width="'+Math.max(0,p.width-t.left-t.right)+'" height="'+Math.max(0,p.height-t.top-t.bottom)+'" fill="none" stroke="#dc2626" data-mark="margin-start" stroke-width=".25" vector-effect="non-scaling-stroke" stroke-dasharray=".01 1.5" stroke-linecap="round"/>';
+  svg+='<rect x="'+(x+t.left)+'" y="'+(y+t.top)+'" width="'+Math.max(0,p.width-t.left-t.right)+'" height="'+Math.max(0,p.height-t.top-t.bottom)+'" fill="none" stroke="#dc2626" data-mark="margin-start" stroke-width=".25" vector-effect="non-scaling-stroke" stroke-dasharray="2 2"/>';
  }
  for(const [edge,band] of [['left',p.overlapLeft],['right',p.overlapRight]])if(band>0){
   const lineX=edge==='left'?x+band:x+p.width-band;
