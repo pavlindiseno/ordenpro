@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ordenpro-cache-v43-simple-orientation-labels';
+const CACHE_NAME = 'ordenpro-cache-v44-round-labels-fine-bleed';
 
 // Archivos propios de la app: SIEMPRE deben poder cachearse (están en el mismo sitio)
 const LOCAL_ASSETS = [
@@ -93,4 +93,3 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(event.request))
   );
 });
-

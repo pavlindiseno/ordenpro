@@ -10,8 +10,8 @@ function packLayout(p){
  const minBleed=Math.min(...p.pieces.map(r=>num(r.bleed??p.bleed??0,'el sangrado')/10)),space=Math.max(0,gap-2*minBleed);
  if(!Array.isArray(p.pieces)||!p.pieces.length)throw Error('Añade alguna pieza.');
  const pieces=[];let glassArea=0;
- p.pieces.forEach((r,i)=>{const w=num(r.width,'el ancho de la pieza',.01),h=num(r.height,'el alto de la pieza',.01),qty=count(r.qty),itemBleed=num(r.bleed??p.bleed??0,'el sangrado')/10,itemGap=num(r.gap??p.gap??5,'la separación')/10;glassArea+=w*h*qty/10000;
- for(let j=0;j<qty;j++)pieces.push({id:i+1,label:r.label||'Pieza '+(i+1),w:w+2*margin,h:h+2*margin,sourceW:w,sourceH:h,bleed:itemBleed,gap:itemGap,fw:w+2*margin+2*itemBleed,fh:h+2*margin+2*itemBleed});});
+ p.pieces.forEach((r,i)=>{const w=num(r.width,'el ancho de la pieza',.01),h=num(r.height,'el alto de la pieza',.01),qty=count(r.qty),itemBleed=num(r.bleed??p.bleed??0,'el sangrado')/10,itemGap=num(r.gap??p.gap??5,'la separación')/10;glassArea+=(r.shape==='round'?Math.PI*w*h/4:w*h)*qty/10000;
+ for(let j=0;j<qty;j++)pieces.push({id:i+1,label:r.label||'Pieza '+(i+1),shape:r.shape||'square',w:w+2*margin,h:h+2*margin,sourceW:w,sourceH:h,bleed:itemBleed,gap:itemGap,fw:w+2*margin+2*itemBleed,fh:h+2*margin+2*itemBleed});});
  if(pieces.length>20000)throw Error('Calcula hasta 20.000 piezas por distribución.');
  for(const r of pieces)if(r.fw>roll+1e-8&&(!p.rotate||r.fh>roll+1e-8))throw Error(r.label+': no cabe en el ancho útil. Cambia la orientación o calcula el cristal por paños.');
  const orders=[(a,b)=>b.fh-a.fh||b.fw-a.fw,(a,b)=>b.fw-a.fw||b.fh-a.fh,(a,b)=>b.fw*b.fh-a.fw*a.fh,(a,b)=>Math.max(b.fw,b.fh)-Math.max(a.fw,a.fh)];
@@ -25,7 +25,7 @@ function packLayout(p){
  if(!chosen){const opt=opts.filter(o=>o.w<=roll+1e-8).sort((a,b)=>rowStrategy==='tall'?b.h-a.h||b.w-a.w:rowStrategy==='density'?(Math.floor((roll+space)/(b.w+space))*b.w-Math.floor((roll+space)/(a.w+space))*a.w)||a.h-b.h:a.h-b.h||b.w-a.w)[0];const row={y:bottom+(shelves.length?space:0),h:opt.h,used:0};shelves.push(row);bottom=row.y+row.h;chosen={...opt,row,x:0};}
  const {row,x,w,h,turned}=chosen;placed.push({...r,x:x+r.bleed,y:row.y+r.bleed,width:w-2*r.bleed,height:h-2*r.bleed,turned});row.used=x+w;
  }
- const result={mode:'pieces',roll,gap,margin,bleed,placed,length:bottom/100,consumedArea:roll*bottom/10000,glassArea,pieceCount:pieces.length,cutArea:pieces.reduce((n,r)=>n+r.w*r.h/10000,0)};
+ const result={mode:'pieces',roll,gap,margin,bleed,placed,length:bottom/100,consumedArea:roll*bottom/10000,glassArea,pieceCount:pieces.length,cutArea:pieces.reduce((n,r)=>n+(r.shape==='round'?Math.PI*r.w*r.h/4:r.w*r.h)/10000,0)};
  if(!best||result.length<best.length-1e-8)best=result;
  }
  // Also fill free corners instead of restricting every cut to a shelf.
@@ -53,7 +53,7 @@ function packLayout(p){
 function pack(p){
  if(!Array.isArray(p.pieces)||!p.pieces.length)throw Error('Añade alguna pieza.');
  const orientation=p.pieceOrientation||(p.rotate?'mixed':'vertical');
- const items=p.pieces.map(r=>orientation==='horizontal'?{...r,width:r.height,height:r.width}:r);
+ const items=p.pieces.map(c=>{const r={...c,shape:c.shape||p.labelShape||'square'};if(r.shape==='round')r.height=r.width;return orientation==='horizontal'?{...r,width:r.height,height:r.width}:r;});
  const params={...p,pieces:items,rotate:orientation==='mixed'};
  function restore(r,index){
   r.placed=r.placed.map(c=>({...c,id:index==null?c.id:index+1,model:index==null?c.id:index+1,
