@@ -46,6 +46,6 @@ for(const p of ovals.placed){assert.equal(p.width,4);assert.equal(p.height,2);}
 assert.ok(Math.abs(ovals.glassArea-3*Math.PI*2/10000)<1e-9);
 const ovalSvg=ctx.diagram(ovals);
 assert.match(ovalSvg,/<ellipse data-mark="bleed-cut"[^>]*rx="2" ry="1"/);
-assert.match(ovalSvg,/stroke-dasharray="2 2"/);
+assert.match(ovalSvg,/stroke-dasharray="1.5 1"/);
 assert.match(ovalSvg,/data-mark="bleed-area"[^>]*stroke-width=".25"/);
 console.log('Oval width/height, surface, dotted red and matching quarter-pixel outlines passed');

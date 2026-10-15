@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ordenpro-cache-v46-restore-red-dash-pattern';
+const CACHE_NAME = 'ordenpro-cache-v47-original-fine-red-pattern';
 
 // Archivos propios de la app: SIEMPRE deben poder cachearse (están en el mismo sitio)
 const LOCAL_ASSETS = [
