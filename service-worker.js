@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ordenpro-cache-v42-label-model-settings';
+const CACHE_NAME = 'ordenpro-cache-v43-simple-orientation-labels';
 
 // Archivos propios de la app: SIEMPRE deben poder cachearse (están en el mismo sitio)
 const LOCAL_ASSETS = [
