@@ -71,3 +71,22 @@ for(const orientation of ['vertical','horizontal']){
 }
 assert.throws(()=>pack({roll:5,pieceOrientation:'horizontal',pieces:[{width:2,height:8,qty:1}]}),/no cabe/);
 console.log('Per-model bleed, gap, fixed rotations and separate full-width job segments passed');
+// Large runs must compare mixed columns, not just uniform shelf rows.
+for(const shape of ['square','round'])for(const mixJobs of [true,false]){
+ const p={roll:100,gap:0,bleed:0,labelShape:shape,mixJobs,pieces:[{width:60,height:40,qty:81}]};
+ const mixed=pack({...p,pieceOrientation:'mixed'}),vertical=pack({...p,pieceOrientation:'vertical'}),horizontal=pack({...p,pieceOrientation:'horizontal'});
+ near(mixed.length,19.6);assert.ok(mixed.length<vertical.length&&mixed.length<horizontal.length);
+ assert.ok(mixed.placed.some(c=>c.turned)&&mixed.placed.some(c=>!c.turned));geometry(mixed);
+}
+for(const shape of ['square','round'])for(const dims of [[6,4],[4,6],[4,4]])for(const qty of [1,79,80,81,150]){
+ const p={roll:10,gap:5,bleed:2,labelShape:shape,pieces:[{width:dims[0],height:dims[1],qty}]};
+ const mixed=pack({...p,pieceOrientation:'mixed'});
+ const fixed=['vertical','horizontal'].map(pieceOrientation=>pack({...p,pieceOrientation}));
+ assert.ok(mixed.length<=Math.min(...fixed.map(c=>c.length))+1e-8);geometry(mixed);
+ assert.equal(mixed.pieceCount,qty);
+ for(const c of mixed.placed){assert.equal(c.shape,shape);near(c.width,c.turned?dims[1]:dims[0]);near(c.height,c.turned?dims[0]:dims[1]);}
+}
+const twoJobs=pack({roll:100,gap:0,bleed:0,mixJobs:false,pieceOrientation:'mixed',labelShape:'round',pieces:[{width:60,height:40,qty:81},{width:60,height:40,qty:81}]});
+assert.equal(twoJobs.segments.length,2);near(twoJobs.length,39.2);
+for(const s of twoJobs.segments)for(const c of twoJobs.placed.filter(p=>p.model===s.model)){assert.ok(c.y>=s.start-1e-8);assert.ok(c.y+c.height<=s.start+s.length*100+1e-8);}
+console.log('Large oval/rectangular runs mix rotations; circles/squares, gaps, bleed, 80-piece boundary and separate jobs passed');

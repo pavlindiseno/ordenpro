@@ -48,6 +48,40 @@ function packLayout(p){
   }
   if(bottom/100<best.length-1e-8)best={...best,placed,length:bottom/100,consumedArea:roll*bottom/10000};
  }
+ // Compare mixed vertical/horizontal columns for repeated footprints, including large runs.
+ if(p.rotate&&pieces.length>1){
+  const first=pieces[0],w=first.fw,h=first.fh;
+  if(w!==h&&pieces.every(r=>Math.abs(r.fw-w)<1e-8&&Math.abs(r.fh-h)<1e-8)){
+   const maxV=Math.min(pieces.length,Math.floor((roll+space+1e-8)/(w+space)));
+   const counts=maxV<=4096?Array.from({length:maxV+1},(_,i)=>i):[0,maxV,...Array.from({length:4095},(_,i)=>Math.floor(i*maxV/4094))];
+   let columns=null,bestBottom=best.length*100;
+   for(const nv of counts){
+    const remaining=roll+space-nv*(w+space);
+    const nh=Math.min(pieces.length,Math.floor((remaining+1e-8)/(h+space)));
+    if(!nv&&!nh)continue;
+    const capacity=height=>nv*Math.max(0,Math.floor((height+space+1e-8)/(h+space)))+nh*Math.max(0,Math.floor((height+space+1e-8)/(w+space)));
+    if(capacity(bestBottom)<pieces.length)continue;
+    let lo=0,hi=bestBottom;
+    for(let n=0;n<50;n++){const mid=(lo+hi)/2;if(capacity(mid)>=pieces.length)hi=mid;else lo=mid;}
+    if(hi<bestBottom-1e-7){bestBottom=hi;columns={nv,nh};}
+   }
+   if(columns){
+    const placed=[];let i=0,x=0,bottom=0;
+    for(const [count,cw,ch,turned] of [[columns.nv,w,h,false],[columns.nh,h,w,true]]){
+     for(let col=0;col<count;col++){
+      const rows=Math.max(0,Math.floor((bestBottom+space+1e-7)/(ch+space)));
+      for(let row=0;row<rows&&i<pieces.length;row++){
+       const r=pieces[i++],y=row*(ch+space);
+       placed.push({...r,x:x+r.bleed,y:y+r.bleed,width:cw-2*r.bleed,height:ch-2*r.bleed,turned});
+       bottom=Math.max(bottom,y+ch);
+      }
+      x+=cw+space;
+     }
+    }
+    if(i===pieces.length&&bottom/100<best.length-1e-8)best={...best,placed,length:bottom/100,consumedArea:roll*bottom/10000};
+   }
+  }
+ }
  return best;
 }
 function pack(p){
