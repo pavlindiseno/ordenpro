@@ -30,13 +30,22 @@ assert.ok(!ctx.diagram(core.pack({roll:12,gap:5,bleed:0,pieces:[{width:5,height:
 const rotatedDiagram=ctx.diagram({mode:'panels',roll:120,length:1,placed:[{x:0,y:0,width:100,height:80,glassWidth:200,glassHeight:100,part:2,parts:2,margin:2,trim:{left:2,right:2,top:0,bottom:2},overlapTop:2,overlapBottom:0}]});
 assert.match(rotatedDiagram,/data-mark="overlap" x1="[^"]+" x2="[^"]+" y1="5.6" y2="5.6"/);
 assert.ok(rotatedDiagram.includes('Solape: 20 mm'));
-const circles=core.pack({roll:12,labelShape:'round',pieceOrientation:'mixed',pieces:[{width:2,height:9,qty:6,gap:3,bleed:2}]});
+const circles=core.pack({roll:12,labelShape:'round',pieceOrientation:'mixed',pieces:[{width:2,height:2,qty:6,gap:3,bleed:2}]});
 assert.equal(circles.pieceCount,6);
 for(const p of circles.placed){assert.equal(p.shape,'round');assert.equal(p.width,2);assert.equal(p.height,2);}
 assert.ok(Math.abs(circles.glassArea-6*Math.PI/10000)<1e-9);
 const circleSvg=ctx.diagram(circles);
 assert.equal((circleSvg.match(/<ellipse data-mark="bleed-cut"/g)||[]).length,6);
-assert.match(circleSvg,/<ellipse data-mark="bleed-cut"[^>]*stroke-width=".7"[^>]*vector-effect="non-scaling-stroke"/);
-assert.ok(circleSvg.includes('Redonda · Ø 20 mm'));
-assert.match(bsvg,/<rect data-mark="bleed-cut"[^>]*stroke-width=".7"[^>]*vector-effect="non-scaling-stroke"/);
+assert.match(circleSvg,/<ellipse data-mark="bleed-cut"[^>]*stroke-width=".25"[^>]*vector-effect="non-scaling-stroke"/);
+assert.ok(circleSvg.includes('Redonda · 20 × 20 mm'));
+assert.match(bsvg,/<rect data-mark="bleed-cut"[^>]*stroke-width=".25"[^>]*vector-effect="non-scaling-stroke"/);
 console.log('Round label area, circular bleed, diameter and fixed fine stroke passed');
+
+const ovals=core.pack({roll:12,labelShape:'round',pieceOrientation:'vertical',pieces:[{width:4,height:2,qty:3,gap:3,bleed:2}]});
+for(const p of ovals.placed){assert.equal(p.width,4);assert.equal(p.height,2);}
+assert.ok(Math.abs(ovals.glassArea-3*Math.PI*2/10000)<1e-9);
+const ovalSvg=ctx.diagram(ovals);
+assert.match(ovalSvg,/<ellipse data-mark="bleed-cut"[^>]*rx="2" ry="1"/);
+assert.match(ovalSvg,/stroke-dasharray=".01 1.5" stroke-linecap="round"/);
+assert.match(ovalSvg,/data-mark="bleed-area"[^>]*stroke-width=".25"/);
+console.log('Oval width/height, surface, dotted red and matching quarter-pixel outlines passed');

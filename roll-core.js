@@ -53,7 +53,7 @@ function packLayout(p){
 function pack(p){
  if(!Array.isArray(p.pieces)||!p.pieces.length)throw Error('Añade alguna pieza.');
  const orientation=p.pieceOrientation||(p.rotate?'mixed':'vertical');
- const items=p.pieces.map(c=>{const r={...c,shape:c.shape||p.labelShape||'square'};if(r.shape==='round')r.height=r.width;return orientation==='horizontal'?{...r,width:r.height,height:r.width}:r;});
+ const items=p.pieces.map(c=>{const r={...c,shape:c.shape||p.labelShape||'square'};return orientation==='horizontal'?{...r,width:r.height,height:r.width}:r;});
  const params={...p,pieces:items,rotate:orientation==='mixed'};
  function restore(r,index){
   r.placed=r.placed.map(c=>({...c,id:index==null?c.id:index+1,model:index==null?c.id:index+1,

@@ -26,11 +26,11 @@ function show(id,on){$(id).hidden=!on;$(id).style.display=on?'':'none';}
 const materials=OrdenProPlotter.products.map((p,i)=>[p,i]).filter(([p])=>p.unit==='m²'&&!p.retired);
 $('roll_material').innerHTML=materials.map(([p,i])=>'<option value="'+i+'">'+esc(p.name)+'</option>').join('');
 function pieceRows(){
- $('roll_pieceRows').innerHTML=pieces.map((r,i)=>'<div class="border border-slate-700 rounded-lg p-2 mb-2"><div class="flex gap-2 items-center mb-2"><label class="text-xs flex-1 min-w-0">Modelo '+(i+1)+' · Nombre (opcional)<input data-piece="'+i+'" data-key="label" value="'+esc(r.label)+'" class="w-full min-w-0 bg-slate-900 rounded p-1"></label><button type="button" data-remove="'+i+'" class="text-rose-300 flex-shrink-0 p-2" aria-label="Eliminar medida">✕</button></div><div class="grid grid-cols-3 gap-2">'+[['width',$('roll_labelShape').value==='round'?'Diámetro (mm)':'Ancho (mm)'],...($('roll_labelShape').value==='round'?[]:[['height','Alto (mm)']]),['qty','Cantidad'],['gap','Separación entre contornos (mm)'],['bleed','Sangrado por lado (mm)']].map(([k,l])=>'<label class="text-xs">'+l+'<input type="number" min="'+(k==='qty'?1:0)+'" step="'+(k==='qty'?1:'any')+'" data-piece="'+i+'" data-key="'+k+'" value="'+esc(['width','height'].includes(k)?+r[k]*10:r[k])+'" class="w-full min-w-0 bg-slate-900 rounded p-2"></label>').join('')+'</div></div>').join('');
+ $('roll_pieceRows').innerHTML=pieces.map((r,i)=>'<div class="border border-slate-700 rounded-lg p-2 mb-2"><div class="flex gap-2 items-center mb-2"><label class="text-xs flex-1 min-w-0">Modelo '+(i+1)+' · Nombre (opcional)<input data-piece="'+i+'" data-key="label" value="'+esc(r.label)+'" class="w-full min-w-0 bg-slate-900 rounded p-1"></label><button type="button" data-remove="'+i+'" class="text-rose-300 flex-shrink-0 p-2" aria-label="Eliminar medida">✕</button></div><div class="grid grid-cols-3 gap-2">'+[['width','Ancho (mm)'],['height','Alto (mm)'],['qty','Cantidad'],['gap','Separación entre contornos (mm)'],['bleed','Sangrado por lado (mm)']].map(([k,l])=>'<label class="text-xs">'+l+'<input type="number" min="'+(k==='qty'?1:0)+'" step="'+(k==='qty'?1:'any')+'" data-piece="'+i+'" data-key="'+k+'" value="'+esc(['width','height'].includes(k)?+r[k]*10:r[k])+'" class="w-full min-w-0 bg-slate-900 rounded p-2"></label>').join('')+'</div></div>').join('');
 }
 function setMode(m){mode=m;$('roll_margin').closest('label').style.display='none';show('roll_glass',m==='panels');show('roll_pieceBlock',m==='pieces');$('roll_panels').className=(m==='panels'?'bg-blue-600':'bg-slate-700')+' rounded-lg p-2 text-sm';$('roll_pieces').className=(m==='pieces'?'bg-blue-600':'bg-slate-700')+' rounded-lg p-2 text-sm';invalidate();}
 function invalidate(){last=null;$('roll_result').textContent='Pulsa Calcular para actualizar la distribución.';$('roll_diagram').innerHTML='';show('roll_cutList',false);}
-function read(){return {mode,roll:Number($('roll_roll').value)/10,glasses:clone(glasses),margin:0,width:Number($('roll_width').value)/10,height:Number($('roll_height').value)/10,qty:$('roll_qty').value,overlap:Number($('roll_overlap').value)/10,orientation:$('roll_orientation').value,gap:mode==='panels'?$('roll_panelGap').value:$('roll_gap').value,bleed:$('roll_bleed').value,rotate:$('roll_pieceOrientation').value==='mixed',pieceOrientation:$('roll_pieceOrientation').value,mixJobs:$('roll_mixJobs').checked,labelShape:$('roll_labelShape').value,pieces:pieces.map(c=>({...c,shape:$('roll_labelShape').value,...($('roll_labelShape').value==='round'?{height:c.width}:{})}))};}
+function read(){return {mode,roll:Number($('roll_roll').value)/10,glasses:clone(glasses),margin:0,width:Number($('roll_width').value)/10,height:Number($('roll_height').value)/10,qty:$('roll_qty').value,overlap:Number($('roll_overlap').value)/10,orientation:$('roll_orientation').value,gap:mode==='panels'?$('roll_panelGap').value:$('roll_gap').value,bleed:$('roll_bleed').value,rotate:$('roll_pieceOrientation').value==='mixed',pieceOrientation:$('roll_pieceOrientation').value,mixJobs:$('roll_mixJobs').checked,labelShape:$('roll_labelShape').value,pieces:pieces.map(c=>({...c,shape:$('roll_labelShape').value}))};}
 function diagram(r){
  const length=r.length*100,offset=Math.max(1,Math.min(12,r.roll*.03));
  const boxes=r.placed.slice(0,1500).map((p,i)=>{
@@ -39,10 +39,10 @@ function diagram(r){
  const contour=(attrs,cx,cy,w,h)=>round?'<ellipse '+attrs+' cx="'+(cx+w/2)+'" cy="'+(cy+h/2)+'" rx="'+w/2+'" ry="'+h/2+'"/>':'<rect '+attrs+' x="'+cx+'" y="'+cy+'" width="'+w+'" height="'+h+'"/>';
  const bleed=r.mode==='pieces'?(p.bleed??r.bleed??0):0;
  const fill=['#bae6fd','#bbf7d0','#fde68a','#ddd6fe'][((p.glassGroup??p.id??i+1)-1)%4];
- let svg=contour('data-mark="bleed-area" fill="'+fill+'" stroke="#334155" stroke-width=".5" vector-effect="non-scaling-stroke"',x-bleed,y-bleed,p.width+2*bleed,p.height+2*bleed);
- if(bleed>0)svg+=contour('data-mark="bleed-cut" fill="none" stroke="#dc2626" stroke-width=".7" vector-effect="non-scaling-stroke" stroke-dasharray="2 2"',x,y,p.width,p.height);
+ let svg=contour('data-mark="bleed-area" fill="'+fill+'" stroke="#334155" stroke-width=".25" vector-effect="non-scaling-stroke"',x-bleed,y-bleed,p.width+2*bleed,p.height+2*bleed);
+ if(bleed>0)svg+=contour('data-mark="bleed-cut" fill="none" stroke="#dc2626" stroke-width=".25" vector-effect="non-scaling-stroke" stroke-dasharray=".01 1.5" stroke-linecap="round"',x,y,p.width,p.height);
  if(p.margin>0){
-  svg+='<rect x="'+(x+t.left)+'" y="'+(y+t.top)+'" width="'+Math.max(0,p.width-t.left-t.right)+'" height="'+Math.max(0,p.height-t.top-t.bottom)+'" fill="none" stroke="#dc2626" data-mark="margin-start" stroke-width=".7" vector-effect="non-scaling-stroke" stroke-dasharray="2 2"/>';
+  svg+='<rect x="'+(x+t.left)+'" y="'+(y+t.top)+'" width="'+Math.max(0,p.width-t.left-t.right)+'" height="'+Math.max(0,p.height-t.top-t.bottom)+'" fill="none" stroke="#dc2626" data-mark="margin-start" stroke-width=".25" vector-effect="non-scaling-stroke" stroke-dasharray=".01 1.5" stroke-linecap="round"/>';
  }
  for(const [edge,band] of [['left',p.overlapLeft],['right',p.overlapRight]])if(band>0){
   const lineX=edge==='left'?x+band:x+p.width-band;
@@ -53,7 +53,7 @@ function diagram(r){
   svg+='<line data-mark="overlap" x1="'+x+'" x2="'+(x+p.width)+'" y1="'+lineY+'" y2="'+lineY+'" stroke="#111827" stroke-width=".65" stroke-dasharray="1.5 1"/>';
  }
  const size=(w,h)=>dec(w*10)+' × '+dec(h*10)+' mm';
- const lines=[p.glassWidth!=null?'Cristal '+size(p.glassWidth,p.glassHeight):round?'Redonda · Ø '+dec(p.width*10)+' mm':'Pieza '+size(p.sourceW??p.width,p.sourceH??p.height),(r.mode==='pieces'?'Modelo '+(p.model||p.id)+' · Pieza ':'Paño ')+n];
+ const lines=[p.glassWidth!=null?'Cristal '+size(p.glassWidth,p.glassHeight):round?'Redonda · '+size(p.sourceW??p.width,p.sourceH??p.height):'Pieza '+size(p.sourceW??p.width,p.sourceH??p.height),(r.mode==='pieces'?'Modelo '+(p.model||p.id)+' · Pieza ':'Paño ')+n];
  if(p.part!=null)lines.push('Parte '+p.part+' de '+p.parts+(p.copy>1?' · Ejemplar '+p.copy:''));
  lines.push('Corte: '+size(p.width,p.height));
  if(bleed>0){lines.push('Sangrado: '+dec(bleed*10)+' mm por lado');lines.push('Impresión: '+size(p.width+2*bleed,p.height+2*bleed));}
@@ -88,9 +88,9 @@ function renderBudget(){ $('roll_budgetRows').innerHTML=draft.map((e,i)=>'<div c
 function newEditor(){editing=null;$('roll_addBudget').textContent='Añadir partida';show('roll_cancelEdit',false);}
 $('roll_panels').onclick=()=>setMode('panels');$('roll_pieces').onclick=()=>setMode('pieces');
 $('roll_close').onclick=()=>dialog.close();$('roll_calculate').onclick=calculate;
-$('roll_labelShape').onchange=()=>{if($('roll_labelShape').value==='round')pieces.forEach(c=>c.height=c.width);pieceRows();invalidate();};
+$('roll_labelShape').onchange=()=>{pieceRows();invalidate();};
 $('roll_addPiece').onclick=()=>{pieces.push({width:0,height:0,qty:0,label:'',gap:5,bleed:0});pieceRows();invalidate();};
-$('roll_pieceRows').addEventListener('input',e=>{const {piece,key}=e.target.dataset;if(key){pieces[+piece][key]=['width','height'].includes(key)?Number(e.target.value)/10:e.target.value;if(key==='width'&&$('roll_labelShape').value==='round')pieces[+piece].height=pieces[+piece].width;invalidate();}});
+$('roll_pieceRows').addEventListener('input',e=>{const {piece,key}=e.target.dataset;if(key){pieces[+piece][key]=['width','height'].includes(key)?Number(e.target.value)/10:e.target.value;invalidate();}});
 $('roll_pieceRows').addEventListener('click',e=>{if(e.target.dataset.remove!==undefined){pieces.splice(+e.target.dataset.remove,1);pieceRows();invalidate();}});
 for(const k of ['roll','margin','width','height','qty','overlap','panelGap','orientation','gap','bleed','rotate','pieceOrientation','mixJobs'])$('roll_'+k).addEventListener('input',invalidate);
 $('roll_material').onchange=()=>{$('roll_price').value=OrdenProPlotter.products[+$('roll_material').value].price;};
