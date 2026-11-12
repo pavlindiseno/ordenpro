@@ -2,7 +2,9 @@
 'use strict';
 const $=id=>document.getElementById(id),money=n=>n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €',clone=x=>JSON.parse(JSON.stringify(x));
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let saved=null,items=[],editing=-1;
+let saved=null,items=[],editing=-1,directEdit=false;
+const uid=()=>'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
+function withIds(list){return list.map(p=>({...p,id:p.id||uid()}));}
 const defaults={product:0,qty:0,width:0,height:0,price:21,laminate:false,lamPrice:18,withEyelets:false,eyelets:0,withHanger:false,hangers:0,frame:false,notes:''};
 const cls='w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-100';
 function field(k,label){return '<label class="block text-xs text-slate-300">'+label+'<input id="plt_'+k+'" type="number" min="0" step="any" class="'+cls+'"></label>';}
@@ -43,28 +45,37 @@ function resetEditor(){editing=-1;for(const k of Object.keys(defaults)){if(typeo
 $('plt_tabs').addEventListener('click',e=>{if(e.target.dataset.category){editing=-1;$('plt_add').textContent='Añadir partida';$('plt_cancelEdit').hidden=true;setCategory(e.target.dataset.category);}});
 $('plt_family').addEventListener('change',()=>chooseProducts());$('plt_product').addEventListener('change',resetProduct);$('plt_form').addEventListener('input',preview);
 $('plt_qty').addEventListener('change',()=>{if(!$('plt_withHanger').checked)$('plt_hangers').value=$('plt_qty').value;});
-$('plt_close').onclick=()=>dialog.close();$('plt_cancelEdit').onclick=resetEditor;
-$('plt_form').onsubmit=e=>{e.preventDefault();const result=preview();if(!result)return;const item={...result.p,result:result.r,label:label(result.p,result.r)};if(editing<0)items.push(item);else items[editing]=item;render();resetEditor();};
+$('plt_close').onclick=()=>{directEdit=false;dialog.close();};$('plt_cancelEdit').onclick=()=>{resetEditor();if(directEdit){directEdit=false;dialog.close();}};
+$('plt_form').onsubmit=e=>{e.preventDefault();const result=preview();if(!result)return;const item={...result.p,id:editing<0?uid():items[editing].id,result:result.r,label:label(result.p,result.r)};if(editing<0)items.push(item);else items[editing]=item;render();resetEditor();if(directEdit){
+ directEdit=false;
+ if(window.replaceEstimatedCostRow?.('plotter',item.id,{name:'Plotter · '+item.label,amount:item.result.total.toFixed(2),notes:item.notes||''})){saved={version:2,items:clone(items)};dialog.close();}
+ else $('plt_apply').onclick();
+ }};
 $('plt_items').addEventListener('click',e=>{
  const a=e.target.dataset.action,i=+e.target.dataset.index;if(!a||!items[i])return;
  if(a==='delete'){items.splice(i,1);resetEditor();render();return;}
- if(a==='duplicate'){items.push(clone(items[i]));render();return;}
+ if(a==='duplicate'){items.push({...clone(items[i]),id:uid()});render();return;}
+ editEntry(i);
+});
+function editEntry(i){
  const p=items[i],product=OrdenProPlotter.products[+p.product];
  if(p.legacy&&!confirm('Esta partida conserva el importe anterior. Al editarla se recalculará con las opciones actuales. ¿Continuar?'))return;
  setCategory(product&&!product.retired?product.category:'materials',product&&!product.retired?p.product:null);
  for(const k of Object.keys(defaults)){if(k==='product')continue;const v=p[k]??defaults[k];if(typeof defaults[k]==='boolean')$('plt_'+k).checked=v;else $('plt_'+k).value=['width','height'].includes(k)?+v*10:v;}
- editing=i;$('plt_add').textContent='Guardar partida';$('plt_cancelEdit').hidden=false;preview();
-});
+ editing=i;$('plt_add').textContent=directEdit?'Guardar cambios':'Guardar partida';$('plt_cancelEdit').hidden=false;preview();
+}
 $('plt_apply').onclick=()=>{
  if(editing>=0){alert('Guarda o cancela la edición de la partida antes de aplicar.');return;}
  if(!items.length&&!saved){alert('Añade una partida al presupuesto.');return;}
- const keep=collectCustomCostRows().filter(row=>!row.name.startsWith('Plotter · '));resetCustomCostRows();keep.forEach(addCustomCostRow);
- for(const p of items)addCustomCostRow({name:'Plotter · '+p.label,amount:p.result.total.toFixed(2),notes:p.notes||''});
+ const keep=collectCustomCostRows().filter(row=>row.estimator!=='plotter'&&!row.name.startsWith('Plotter · '));resetCustomCostRows();keep.forEach(addCustomCostRow);
+ for(const p of items)addCustomCostRow({name:'Plotter · '+p.label,amount:p.result.total.toFixed(2),notes:p.notes||'',estimator:'plotter',estimateId:p.id});
  saved=items.length?{version:2,items:clone(items)}:null;
  if(!$('jobTitle').value)$('jobTitle').value='Trabajo de plotter';
  if(!$('jobQuantity').value)$('jobQuantity').value=1;
  updateCostTotals();dialog.close();
 };
-window.ordenproPlotterUI={open(){items=OrdenProPlotter.migrate(saved);const rows=collectCustomCostRows();for(const p of items){const row=rows.find(r=>r.name==='Plotter · '+p.label);if(row?.notes!==undefined)p.notes=row.notes;}resetEditor();render();dialog.showModal();},load(p){saved=p?clone(p):null;},readSaved(){return saved?clone(saved):null;}};
+window.ordenproPlotterUI={open(){directEdit=false;items=withIds(OrdenProPlotter.migrate(saved));const rows=collectCustomCostRows();for(const p of items){const row=rows.find(r=>r.estimator==='plotter'&&r.estimateId===p.id)||rows.find(r=>!r.estimateId&&r.name==='Plotter · '+p.label);if(row?.notes!==undefined)p.notes=row.notes;}resetEditor();render();dialog.showModal();},reference(name,used=[]){const p=saved?.items?.find(r=>name==='Plotter · '+r.label&&!used.includes(r.id));return p?{estimator:'plotter',estimateId:p.id}:null;},
+editSaved(id){this.open();const i=items.findIndex(p=>p.id===id);if(i<0){dialog.close();return false;}directEdit=true;editEntry(i);return true;},
+removeSaved(id){if(saved){saved.items=saved.items.filter(p=>p.id!==id);if(!saved.items.length)saved=null;}},
+load(p){saved=p?{version:2,items:withIds(OrdenProPlotter.migrate(p))}:null;},readSaved(){return saved?clone(saved):null;}};
 })();
-

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ordenpro-cache-v48-mixed-orientations-large-label-runs';
+const CACHE_NAME = 'ordenpro-cache-v49-edit-estimate-lines-cut-pdf';
 
 // Archivos propios de la app: SIEMPRE deben poder cachearse (están en el mismo sitio)
 const LOCAL_ASSETS = [
@@ -9,6 +9,7 @@ const LOCAL_ASSETS = [
   './plotter-ui.js',
   './roll-core.js',
   './roll-ui.js',
+  './roll-cut-pdf.js',
   './cloud-core.js',
   './cloud-sync.js',
   './manifest.json',

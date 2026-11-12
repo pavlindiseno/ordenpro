@@ -2253,7 +2253,7 @@
         }
 
         function addVinylRow(type, data = {}) {
-            const rowId = 'r' + Date.now() + Math.floor(Math.random() * 1000);
+            const rowId = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
             vinylRowIds[type].push(rowId);
             document.getElementById(type + 'Rows').insertAdjacentHTML('beforeend', vinylRowHtml(type, rowId, data));
             updateCostTotals();
@@ -2280,8 +2280,13 @@
         function customCostRowHtml(rowId, data = {}) {
             const name = escapeHtml(data.name || '');
             const amount = data.amount || '';
+            const used = customCostRowIds.map(id => document.getElementById('row_customCost_' + id)?.dataset.estimateId).filter(Boolean);
+            const ref = data.estimator && data.estimateId ? data : window.ordenproRollUI?.reference?.(data.name, used) || window.ordenproPlotterUI?.reference?.(data.name, used);
+            const estimator = ['roll','plotter'].includes(ref?.estimator) ? ref.estimator : '';
+            const estimateId = estimator ? escapeHtml(ref.estimateId) : '';
+            const actions = estimator ? `<div class="flex flex-wrap gap-3 px-2 py-1 text-xs"><button type="button" onclick="editEstimatedCostRow('${rowId}')" class="text-amber-300 font-semibold">Editar partida</button>${estimator === 'roll' ? `<button type="button" onclick="downloadEstimatedCostRow('${rowId}')" class="text-blue-300">PDF de corte</button>` : ''}</div>` : '';
             return `
-                <div id="row_customCost_${rowId}"><details class="bg-slate-900/40 rounded-lg"><summary class="cursor-pointer text-xs text-slate-300 p-2">Ver detalle y observaciones · ${name || 'Concepto'}</summary><label class="block text-xs text-slate-300 p-2">Descripción del trabajo<textarea rows="3" data-field="notes" data-row="customCost_${rowId}" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100">${escapeHtml(data.notes || '')}</textarea></label></details><div class="flex gap-1.5 items-center bg-slate-800/60 p-2 rounded-lg border border-slate-700/50">
+                <div id="row_customCost_${rowId}" data-estimator="${estimator}" data-estimate-id="${estimateId}">${actions}<details class="bg-slate-900/40 rounded-lg"><summary class="cursor-pointer text-xs text-slate-300 p-2">Ver detalle y observaciones · ${name || 'Concepto'}</summary><label class="block text-xs text-slate-300 p-2">Descripción del trabajo<textarea rows="3" data-field="notes" data-row="customCost_${rowId}" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-100">${escapeHtml(data.notes || '')}</textarea></label></details><div class="flex gap-1.5 items-center bg-slate-800/60 p-2 rounded-lg border border-slate-700/50">
                     <input type="text" placeholder="Ej: Metacrilato" value="${name}" oninput="updateCostTotals()" data-field="name" data-row="customCost_${rowId}" class="flex-1 bg-slate-900 border border-slate-700 rounded p-1.5 text-slate-100 text-xs focus:border-emerald-500 focus:outline-none">
                     <input type="number" step="0.01" min="${name.startsWith('Revistas · Descuento ') ? '-999999999' : '0'}" placeholder="€" value="${amount}" oninput="updateCostTotals()" data-field="amount" data-row="customCost_${rowId}" class="cost-field w-24 bg-slate-900 border border-slate-700 rounded p-1.5 text-slate-100 text-xs focus:border-emerald-500 focus:outline-none">
                     <button type="button" onclick="removeCustomCostRow('${rowId}')" class="text-rose-400 hover:text-rose-300 px-1"><i class="fa-solid fa-trash-can text-xs"></i></button>
@@ -2289,7 +2294,7 @@
         }
 
         function addCustomCostRow(data = {}) {
-            const rowId = 'r' + Date.now() + Math.floor(Math.random() * 1000);
+            const rowId = 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
             customCostRowIds.push(rowId);
             document.getElementById('customCostRows').insertAdjacentHTML('beforeend', customCostRowHtml(rowId, data));
             document.getElementById('emptyCustomCost').classList.add('hidden');
@@ -2299,9 +2304,35 @@
         function removeCustomCostRow(rowId) {
             customCostRowIds = customCostRowIds.filter(id => id !== rowId);
             const rowEl = document.getElementById('row_customCost_' + rowId);
+            if (rowEl?.dataset.estimator) {
+                const ui = rowEl.dataset.estimator === 'roll' ? window.ordenproRollUI : window.ordenproPlotterUI;
+                ui?.removeSaved?.(rowEl.dataset.estimateId);
+            }
             if (rowEl) rowEl.remove();
             if (customCostRowIds.length === 0) document.getElementById('emptyCustomCost').classList.remove('hidden');
             updateCostTotals();
+        }
+
+        function editEstimatedCostRow(rowId) {
+            const row = document.getElementById('row_customCost_' + rowId);
+            const ui = row?.dataset.estimator === 'roll' ? window.ordenproRollUI : window.ordenproPlotterUI;
+            if (!ui?.editSaved?.(row?.dataset.estimateId)) alert('No se encuentran las características de esta partida.');
+        }
+
+        function downloadEstimatedCostRow(rowId) {
+            const row = document.getElementById('row_customCost_' + rowId);
+            window.ordenproRollUI?.downloadSaved(row?.dataset.estimateId);
+        }
+
+        function replaceEstimatedCostRow(estimator, estimateId, data) {
+            const rowId = customCostRowIds.find(id => {
+                const el = document.getElementById('row_customCost_' + id);
+                return el?.dataset.estimator === estimator && el.dataset.estimateId === estimateId;
+            });
+            if (!rowId) return false;
+            document.getElementById('row_customCost_' + rowId).outerHTML = customCostRowHtml(rowId, {...data, estimator, estimateId});
+            updateCostTotals();
+            return true;
         }
 
         function resetCustomCostRows() {
@@ -2326,7 +2357,9 @@
             return customCostRowIds.map(rowId => ({
                 name: getVinylRowField('customCost', rowId, 'name'),
                 amount: getVinylRowField('customCost', rowId, 'amount'),
-                notes: getVinylRowField('customCost', rowId, 'notes')
+                notes: getVinylRowField('customCost', rowId, 'notes'),
+                estimator: document.getElementById('row_customCost_' + rowId)?.dataset.estimator || undefined,
+                estimateId: document.getElementById('row_customCost_' + rowId)?.dataset.estimateId || undefined
             }));
         }
 
@@ -3259,7 +3292,7 @@
 <script src="plotter-core.js"></script>
 <script src="plotter-ui.js"></script>
 <script src="roll-core.js"></script>
+<script src="roll-cut-pdf.js"></script>
 <script src="roll-ui.js"></script>
 </body>
 </html>
-
