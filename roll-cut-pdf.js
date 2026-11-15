@@ -11,6 +11,22 @@ function geometry(result){
   if(!Object.values(c).slice(1).every(Number.isFinite)||c.width<=0||c.height<=0||c.x<-.001||c.y<-.001||c.x+c.width>width+.001||c.y+c.height>height+.001)throw Error('Un contorno queda fuera de la bobina. Vuelve a calcular la distribución.');
   return c;
  });
+ // Centre each independent row/band as a unit; never shift side-by-side cuts separately.
+ // The original spacing and the longitudinal positions remain intact.
+ const maxGap=Math.max(Number(result.gap)||0,...result.placed.map(p=>Number(p.gap)||0))*10;
+ const minBleed=result.mode==='pieces'?Math.min(...result.placed.map(p=>Number(p.bleed??result.bleed??0)*10)):0;
+ const clearance=Math.max(0,maxGap-2*minBleed);
+ const ordered=[...contours].sort((a,b)=>a.y-b.y),bands=[];
+ for(const c of ordered){
+  let band=bands[bands.length-1];
+  if(!band||c.y>=band.bottom+clearance-1e-6){band={contours:[],bottom:0};bands.push(band);}
+  band.contours.push(c);band.bottom=Math.max(band.bottom,c.y+c.height);
+ }
+ for(const band of bands){
+  const left=Math.min(...band.contours.map(c=>c.x)),right=Math.max(...band.contours.map(c=>c.x+c.width));
+  const shift=(width-(right-left))/2-left;
+  band.contours.forEach(c=>c.x+=shift);
+ }
  return {width,height,contours};
 }
 function build(result){

@@ -26,3 +26,19 @@ const xref=+text.match(/startxref\n(\d+)/)[1];assert.equal(text.slice(xref,xref+
 assert.throws(()=>pdf.build({...long,placed:[{x:-1,y:0,width:10,height:10}]}),/fuera/);
 assert.throws(()=>pdf.build({roll:120,length:1,placed:[]}),/Calcula/);
 console.log('Cut PDF: exact millimetres, one outer contour, margins/overlaps/bleed, ovals/rotation, all pieces, long roll scale and no text/marks passed');
+
+// Single panels centre independently, while rows with multiple cuts keep their geometry.
+const centred=pdf.geometry(glasses);
+near(centred.contours[0].x,0);near(centred.contours[1].x,170);
+const source={mode:'panels',roll:120,length:1.1,gap:.5,placed:[
+ {x:0,y:0,width:30,height:50},{x:30.5,y:0,width:40,height:50},
+ {x:0,y:50.5,width:20,height:50}
+]};
+const unchanged=JSON.stringify(source),grouped=pdf.geometry(source);
+near(grouped.contours[0].x,247.5);near(grouped.contours[1].x,552.5);near(grouped.contours[2].x,500);
+near(grouped.contours[1].x-grouped.contours[0].x,305);assert.equal(JSON.stringify(source),unchanged);
+const ellipseRows=core.pack({roll:12,gap:5,labelShape:'round',pieceOrientation:'vertical',pieces:[{width:4,height:2,qty:3,bleed:2}]});
+const ellipses=pdf.geometry(ellipseRows).contours;
+near(ellipses[0].x,15.5);near(ellipses[1].x,60.5);near(ellipses[2].x,38);
+for(const c of ellipses){near(c.width,44);near(c.height,24);}
+console.log('PDF centring: independent panels, side-by-side rows, oval bleed and source immutability passed');
