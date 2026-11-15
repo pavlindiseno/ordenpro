@@ -27,7 +27,8 @@ function geometry(result){
   const shift=(width-(right-left))/2-left;
   band.contours.forEach(c=>c.x+=shift);
  }
- return {width,height,contours};
+ contours.forEach(c=>c.y+=20);
+ return {width,height:height+40,contours};
 }
 function build(result){
  const g=geometry(result),unit=Math.max(1,Math.ceil(Math.max(g.width,g.height)*POINTS_PER_MM/14400));

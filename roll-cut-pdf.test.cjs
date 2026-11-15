@@ -7,7 +7,7 @@ assert.deepEqual(glassPdf.contours.map(c=>[c.width,c.height]),[[1200,1040],[860,
 assert.equal((text.match(/ re S/g)||[]).length,2);
 assert.ok(!/BT|\/Font|\/Annots|\/XObject|CutContour|OPOS/.test(text));
 assert.ok(text.includes('[] 0 d'));
-near(glassPdf.width,1200);near(glassPdf.height,2085);
+near(glassPdf.width,1200);near(glassPdf.height,2125);
 for(const shape of ['square','round']){
  const r=core.pack({roll:12,gap:5,labelShape:shape,pieceOrientation:'vertical',pieces:[{width:4,height:2,qty:3,bleed:2}]});
  const out=pdf.build(r),content=new TextDecoder().decode(out.bytes);
@@ -19,9 +19,9 @@ assert.deepEqual(pdf.geometry(rotated).contours.map(c=>[c.width,c.height]),[[24,
 const many=core.pack({roll:120,gap:5,rotate:false,pieces:[{width:2,height:2,qty:1600,bleed:1}]});
 assert.equal(pdf.build(many).contours.length,1600); // export every piece, independent of preview limit
 const long={mode:'panels',roll:120,length:12,placed:[{x:0,y:0,width:120,height:1200}]},longPdf=pdf.build(long);
-assert.ok(longPdf.userUnit>1);near(longPdf.height,12000);
+assert.ok(longPdf.userUnit>1);near(longPdf.height,12040);
 const longText=new TextDecoder().decode(longPdf.bytes),box=longText.match(/\/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]/);
-near(+box[2]*longPdf.userUnit*25.4/72,12000);
+near(+box[2]*longPdf.userUnit*25.4/72,12040);
 const xref=+text.match(/startxref\n(\d+)/)[1];assert.equal(text.slice(xref,xref+4),'xref');
 assert.throws(()=>pdf.build({...long,placed:[{x:-1,y:0,width:10,height:10}]}),/fuera/);
 assert.throws(()=>pdf.build({roll:120,length:1,placed:[]}),/Calcula/);
@@ -42,3 +42,11 @@ const ellipses=pdf.geometry(ellipseRows).contours;
 near(ellipses[0].x,15.5);near(ellipses[1].x,60.5);near(ellipses[2].x,38);
 for(const c of ellipses){near(c.width,44);near(c.height,24);}
 console.log('PDF centring: independent panels, side-by-side rows, oval bleed and source immutability passed');
+
+for(const result of [glasses,ellipseRows,long,many]){
+ const g=pdf.geometry(result);
+ near(g.height,result.length*1000+40);
+ near(Math.min(...g.contours.map(c=>c.y)),20);
+ near(g.height-Math.max(...g.contours.map(c=>c.y+c.height)),20);
+}
+console.log('Cut PDF includes 20 mm blank lead and tail, without resizing cuts');
