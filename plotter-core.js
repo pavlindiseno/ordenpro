@@ -22,9 +22,32 @@ const qty=+p.qty,price=p.price===''?NaN:+p.price,width=+p.width,height=+p.height
 if(!Number.isInteger(qty)||qty<1)throw Error('La cantidad debe ser entera y mayor que cero.');
 if(!Number.isFinite(price)||price<0)throw Error('Introduce el precio: esta tarifa puede estar pendiente.');
 if([lamPrice,eyelets,eyeletPrice,hangers,hangerPrice,minimum,discount].some(n=>!Number.isFinite(n)||n<0)||!Number.isInteger(eyelets)||!Number.isInteger(hangers)||discount>100)throw Error('Revisa extras, mínimo y descuento (0–100 %).');
-if((product.unit==='m²'||p.laminate)&&(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0))throw Error('Introduce ancho y alto en centímetros.');
+if((product.unit==='m²'||p.laminate)&&(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0))throw Error('Introduce ancho y alto en milímetros.');
 const area=width*height/10000*qty,base=(product.unit==='m²'?area:qty)*price,lamination=p.laminate?area*lamPrice:0,extras=eyelets*eyeletPrice+hangers*hangerPrice,subtotal=Math.max(minimum,base+lamination+extras),discountAmount=subtotal*discount/100,total=subtotal-discountAmount;
 return {area,base,lamination,extras,subtotal,discountAmount,total,unit:total/qty};
+}
+function materialArea(p){
+ const width=Number(p.width),height=Number(p.height),qty=Number(p.qty??1);
+ if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0||!Number.isInteger(qty)||qty<1)throw Error('Introduce medidas y cantidad válidas.');
+ const area=width*height*qty/10000;
+ if(p.billingBasis!=='consumed')return {area,billedArea:area,consumedArea:area,wasteArea:0};
+ const rollWidth=Number(p.rollWidth);
+ if(p.rollWidth===''||!Number.isFinite(rollWidth)||rollWidth<=0)throw Error('Indica el ancho de la bobina o plancha en milímetros.');
+ const options=[[width,height],[height,width]].filter(([cross])=>cross<=rollWidth+1e-8);
+ const source=p.stockSource==='sheet'?'sheet':'roll';
+ let consumedArea,runLength=0,sheets=0;
+ if(source==='sheet'){
+  const stockHeight=Number(p.stockHeight);
+  if(p.stockHeight===''||!Number.isFinite(stockHeight)||stockHeight<=0)throw Error('Indica el alto de la plancha en milímetros.');
+  const capacity=Math.max(0,...options.map(([w,h])=>Math.floor((rollWidth+1e-8)/w)*Math.floor((stockHeight+1e-8)/h)));
+  if(!capacity)throw Error('La pieza no cabe en la plancha indicada.');
+  sheets=Math.ceil(qty/capacity);consumedArea=sheets*rollWidth*stockHeight/10000;
+ }else{
+  if(!options.length)throw Error('La pieza no cabe en el ancho de bobina. Para dividirla, utiliza Cristales por paños.');
+  runLength=Math.min(...options.map(([cross,along])=>Math.ceil(qty/Math.floor((rollWidth+1e-8)/cross))*along));
+  consumedArea=rollWidth*runLength/10000;
+ }
+ return {area,billedArea:Math.max(area,consumedArea),consumedArea:Math.max(area,consumedArea),wasteArea:Math.max(0,consumedArea-area),rollWidth,runLength,sheets,source};
 }
 function calculate(p){
  const product=products[+p.product];if(!product||product.retired)throw Error('Selecciona un producto de la tarifa actual.');
@@ -33,17 +56,18 @@ function calculate(p){
  if(!Number.isFinite(price)||price<0)throw Error('Introduce un precio: este formato no tiene tarifa.');
  const width=product.width??+p.width,height=product.height??+p.height;
  const canvas=product.family==='Lienzo'||product.name==='Lienzo';
- if((product.unit==='m²'||(canvas&&p.frame))&&(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0))throw Error('Introduce ancho y alto en centímetros.');
- const area=product.unit==='m²'?width*height/10000*qty:0;
- const base=(product.unit==='m²'?area:qty)*price;
+ if((product.unit==='m²'||(canvas&&p.frame))&&(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0))throw Error('Introduce ancho y alto en milímetros.');
+ const material=product.unit==='m²'?materialArea({...p,width,height,qty}):{area:0,billedArea:0,wasteArea:0};
+ const {area,billedArea,wasteArea}=material;
+ const base=(product.unit==='m²'?billedArea:qty)*price;
  const frameMeters=canvas&&p.frame?2*(width+height)/100*qty:0,frame=frameMeters*10;
  const hangers=product.category==='plates'&&!canvas&&p.withHanger?+(p.hangers??qty):0;
  const eyelets=product.name==='Lona'&&p.withEyelets?+(p.eyelets??0):0;
  if(!Number.isInteger(hangers)||hangers<0||!Number.isInteger(eyelets)||eyelets<0)throw Error('Colgadores y ojales deben ser cantidades enteras sin negativos.');
- const laminate=product.category==='materials'&&p.laminate?area*+(p.lamPrice??18):0;
+ const laminate=product.category==='materials'&&p.laminate?billedArea*+(p.lamPrice??18):0;
  if(!Number.isFinite(laminate)||laminate<0)throw Error('Revisa el precio del laminado.');
  const total=base+frame+hangers*6+eyelets+laminate;
- return {area,base,frameMeters,frame,hangers,eyelets,lamination:laminate,total,subtotal:total,unit:total/qty};
+ return {...material,area,billedArea,wasteArea,base,frameMeters,frame,hangers,eyelets,lamination:laminate,total,subtotal:total,unit:total/qty};
 }
 function migrate(saved){
  if(!saved)return [];
@@ -52,5 +76,5 @@ function migrate(saved){
  const product=products[+saved.product];
  return [{...saved,legacy:true,label:(product?.name||'Partida anterior')+(product?.size?' · '+product.size:''),result:{...saved.result,total:+saved.result?.total||0}}];
 }
-root.OrdenProPlotter={products,calculate,legacyCalculate,migrate};if(typeof module!=='undefined')module.exports=root.OrdenProPlotter;
+root.OrdenProPlotter={products,calculate,materialArea,legacyCalculate,migrate};if(typeof module!=='undefined')module.exports=root.OrdenProPlotter;
 })(globalThis);

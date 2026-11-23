@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ordenpro-cache-v51-cut-pdf-lead-tail';
+const CACHE_NAME = 'ordenpro-cache-v52-material-used-or-waste';
 
 // Archivos propios de la app: SIEMPRE deben poder cachearse (están en el mismo sitio)
 const LOCAL_ASSETS = [

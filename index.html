@@ -2248,6 +2248,10 @@
                         <input type="number" step="0.01" min="0" placeholder="Largo mm" value="${length}" oninput="updateCostTotals()" data-field="length" data-row="${type}_${rowId}" class="cost-field bg-slate-900 border border-slate-700 rounded p-1.5 text-slate-100 text-xs focus:border-emerald-500 focus:outline-none">
                         <input type="number" step="0.01" min="0" placeholder="€/m²" value="${price}" oninput="updateCostTotals()" data-field="price" data-row="${type}_${rowId}" class="cost-field bg-slate-900 border border-slate-700 rounded p-1.5 text-slate-100 text-xs focus:border-emerald-500 focus:outline-none">
                     </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <label>Material que se cobra<select data-field="billingBasis" data-row="${type}_${rowId}" onchange="updateCostTotals()" class="w-full bg-slate-900 rounded p-1.5"><option value="surface" ${data.billingBasis !== 'consumed' ? 'selected' : ''}>Solo material usado</option><option value="consumed" ${data.billingBasis === 'consumed' ? 'selected' : ''}>Material usado + desperdicio</option></select></label>
+                        <label>Ancho de bobina (mm)<input type="number" min="1" step="any" data-field="rollWidth" data-row="${type}_${rowId}" value="${data.rollWidth ? +data.rollWidth*1000 : 1200}" oninput="updateCostTotals()" class="w-full bg-slate-900 rounded p-1.5"></label>
+                    </div>
                     <div class="text-right text-[11px] text-slate-500">Importe: <span data-amount="${type}_${rowId}" class="text-slate-300 font-semibold">0.00 €</span></div>
                 </div>`;
         }
@@ -2371,7 +2375,7 @@
 
         function getVinylRowField(type, rowId, field) {
             const el = document.querySelector(`[data-row="${type}_${rowId}"][data-field="${field}"]`);
-            return el ? (['width','length'].includes(field)&&type!=='customCost'?Number(el.value)/1000:el.value) : '';
+            return el ? (['width','length','rollWidth'].includes(field)&&type!=='customCost'?Number(el.value)/1000:el.value) : '';
         }
 
         // Calcula (y pinta en pantalla) el total de un tipo de vinilo sumando todas sus filas
@@ -2381,9 +2385,11 @@
                 const w = parseFloat(getVinylRowField(type, rowId, 'width')) || 0;
                 const l = parseFloat(getVinylRowField(type, rowId, 'length')) || 0;
                 const p = parseFloat(getVinylRowField(type, rowId, 'price')) || 0;
-                const amt = w * l * p;
+                let amt = 0, error = '';
+                try { amt = vinylRowCharge({width:w,length:l,price:p,billingBasis:getVinylRowField(type,rowId,'billingBasis'),rollWidth:getVinylRowField(type,rowId,'rollWidth')}).amount; }
+                catch(e) { error=e.message; }
                 const amtEl = document.querySelector(`[data-amount="${type}_${rowId}"]`);
-                if (amtEl) amtEl.innerText = amt.toFixed(2) + ' €';
+                if (amtEl) amtEl.innerText = error || amt.toFixed(2) + ' €';
                 total += amt;
             });
             const totalEl = document.getElementById(type + 'TotalAmount');
@@ -2398,14 +2404,26 @@
                 color: getVinylRowField(type, rowId, 'color'),
                 width: getVinylRowField(type, rowId, 'width'),
                 length: getVinylRowField(type, rowId, 'length'),
-                price: getVinylRowField(type, rowId, 'price')
+                price: getVinylRowField(type, rowId, 'price'),
+                billingBasis: getVinylRowField(type, rowId, 'billingBasis') || 'surface',
+                rollWidth: getVinylRowField(type, rowId, 'rollWidth')
             }));
         }
 
         // Suma el importe de un array de filas de vinilo ya guardado (para tarjetas y resumen A4)
+        function vinylRowCharge(row) {
+            const width=parseFloat(row.width)||0, height=parseFloat(row.length)||0, price=parseFloat(row.price)||0;
+            if(width<=0||height<=0)return {area:0,billedArea:0,wasteArea:0,amount:0};
+            const area=width*height;
+            const material=row.billingBasis==='consumed'
+                ? OrdenProPlotter.materialArea({width:width*100,height:height*100,qty:1,billingBasis:'consumed',rollWidth:Number(row.rollWidth)*100})
+                : {area,billedArea:area,wasteArea:0};
+            return {...material,amount:material.billedArea*price};
+        }
+
         function sumVinylRows(rows) {
             if (!Array.isArray(rows)) return 0;
-            return rows.reduce((sum, r) => sum + ((parseFloat(r.width) || 0) * (parseFloat(r.length) || 0) * (parseFloat(r.price) || 0)), 0);
+            return rows.reduce((sum, r) => sum + vinylRowCharge(r).amount, 0);
         }
 
         function getCostValues() {
@@ -2515,6 +2533,8 @@
 
         function handleFormSubmit(e) {
             e.preventDefault();
+            try { Object.keys(vinylRowIds).forEach(type => collectVinylRows(type).forEach(vinylRowCharge)); }
+            catch(error) { alert(error.message); goToStep(3); return; }
             const discount = Number(document.getElementById('discountPercent').value);
             if (!Number.isFinite(discount) || discount < 0 || discount > 100) { alert('El descuento debe estar entre 0 y 100 %.'); goToStep(3); return; }
 
@@ -2812,10 +2832,11 @@
                     const w = parseFloat(row.width) || 0;
                     const l = parseFloat(row.length) || 0;
                     const p = parseFloat(row.price) || 0;
-                    const amount = w * l * p;
+                    const material = vinylRowCharge(row);
+                    const amount = material.amount;
                     if (Math.abs(amount) < 0.005) return;
                     const brandColor = [row.brand, row.color].filter(Boolean).join(' ');
-                    vinylHtml += `<div class="flex justify-between text-slate-600"><span>${vinylLabels[key]}${brandColor ? ' — ' + escapeHtml(brandColor) : ''} (${w*1000} × ${l*1000} mm)</span><span class="font-medium text-slate-800">${amount.toFixed(2)} €</span></div>`;
+                    vinylHtml += `<div class="flex justify-between text-slate-600"><span>${vinylLabels[key]}${brandColor ? ' — ' + escapeHtml(brandColor) : ''} (${w*1000} × ${l*1000} mm)${row.billingBasis==='consumed'?' · material + desperdicio: '+material.billedArea.toFixed(3)+' m²':''}</span><span class="font-medium text-slate-800">${amount.toFixed(2)} €</span></div>`;
                 });
             });
             (order.customCostRows || []).forEach(row => {
