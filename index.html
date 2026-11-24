@@ -870,6 +870,7 @@
                 </label>
                 <p id="fileUploadStatus" role="status" aria-live="polite" class="text-xs text-blue-300"></p>
 
+                <p class="text-xs text-slate-400">Pulsa el nombre para abrir un PDF o una imagen. Los demás formatos se descargan para abrirlos con su aplicación.</p>
                 <div id="fileList" class="space-y-2 mt-2"></div>
                 <p id="emptyFiles" class="text-xs text-slate-500 italic hidden">Sin archivos adjuntos todavía.</p>
             </div>
@@ -1019,6 +1020,7 @@
         </div>
     </div>
 
+    <script src="attachment-files.js"></script>
     <script src="local-store.js"></script>
     <!-- LOGICA SCRIPT -->
     <script>
@@ -3146,13 +3148,24 @@
                     <div class="w-9 h-9 rounded bg-slate-700 flex items-center justify-center flex-shrink-0 text-slate-300">
                         <i class="fa-solid ${isImage ? 'fa-image' : 'fa-file-pdf'}"></i>
                     </div>
-                    <a href="${file.dataUrl}" target="_blank" rel="noopener" class="flex-1 min-w-0 text-slate-200 text-sm truncate hover:text-blue-400">${escapeHtml(file.name)}</a>
+                    <a href="#" data-attachment-open="${idx}" class="flex-1 min-w-0 text-slate-200 text-sm truncate hover:text-blue-400">${escapeHtml(file.name)}</a>
+                    <a href="#" data-attachment-download="${idx}" class="text-blue-300 text-xs flex-shrink-0" aria-label="Descargar ${escapeHtml(file.name)}">Descargar</a>
                     <button type="button" onclick="removeFile(${idx})" title="Eliminar" class="text-rose-400 hover:text-rose-300 p-1.5">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
                 `;
+                row.querySelector('[data-attachment-open]').addEventListener('click', event => activateAttachment(event, file, false));
+                row.querySelector('[data-attachment-download]').addEventListener('click', event => activateAttachment(event, file, true));
                 container.appendChild(row);
             });
+        }
+
+        function activateAttachment(event, file, download) {
+            try { window.OrdenProAttachments.prepare(event.currentTarget, file, download); }
+            catch(error) {
+                event.preventDefault();
+                document.getElementById('fileUploadStatus').textContent=error.message;
+            }
         }
 
         function readFileAsDataUrl(file) {

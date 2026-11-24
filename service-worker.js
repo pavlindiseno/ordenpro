@@ -1,8 +1,9 @@
-const CACHE_NAME = 'ordenpro-cache-v53-file-upload-drop-large-files';
+const CACHE_NAME = 'ordenpro-cache-v54-open-attachments-as-files';
 
 // Archivos propios de la app: SIEMPRE deben poder cachearse (están en el mismo sitio)
 const LOCAL_ASSETS = [
   './index.html',
+  './attachment-files.js',
   './local-store.js',
   './magazine-core.js',
   './magazine-ui.js',
