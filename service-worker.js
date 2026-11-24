@@ -1,8 +1,9 @@
-const CACHE_NAME = 'ordenpro-cache-v52-material-used-or-waste';
+const CACHE_NAME = 'ordenpro-cache-v53-file-upload-drop-large-files';
 
 // Archivos propios de la app: SIEMPRE deben poder cachearse (están en el mismo sitio)
 const LOCAL_ASSETS = [
   './index.html',
+  './local-store.js',
   './magazine-core.js',
   './magazine-ui.js',
   './plotter-core.js',

@@ -851,25 +851,31 @@
                     <i class="fa-solid fa-paperclip text-amber-400"></i>
                     <span>Archivos — <span id="fileModalOrderNum" class="text-blue-400"></span></span>
                 </h2>
-                <button onclick="closeFileModal()" class="text-slate-400 hover:text-white text-xl p-1">
+                <button type="button" onclick="closeFileModal()" class="text-slate-400 hover:text-white text-xl p-1">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
 
             <div class="p-6 overflow-y-auto space-y-3 flex-1 text-sm">
-                <p class="text-xs text-slate-400 -mt-1">PDFs, documentos u otros archivos que te haya pasado el cliente (planos, artes, facturas...). Se guardan en este dispositivo.</p>
+                <p class="text-xs text-slate-400 -mt-1">PDFs, documentos u otros archivos que te haya pasado el cliente (planos, artes, facturas...). Se guardan con la orden en este dispositivo y se incluyen en la sincronización cuando la nube está conectada.</p>
 
-                <label class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 cursor-pointer transition border-2 border-dashed border-slate-600">
-                    <i class="fa-solid fa-file-arrow-up"></i> Añadir archivo (PDF, imagen, documento...)
-                    <input type="file" multiple class="hidden" onchange="handleFileAdd(event)">
+                <div id="fileDropZone" class="relative bg-slate-700 hover:bg-slate-600 text-slate-200 p-5 rounded-lg text-center border-2 border-dashed border-slate-500">
+                    <i class="fa-solid fa-file-arrow-up" aria-hidden="true"></i>
+                    <p class="font-semibold">Pulsa aquí o arrastra tus archivos</p>
+                    <p class="text-xs mt-1">PDF, JPG, documentos y cualquier otro formato. Puedes elegir varios.</p>
+                    <input id="attachmentInput" type="file" multiple aria-label="Seleccionar archivos para adjuntar" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer">
+                </div>
+                <label class="relative inline-flex bg-slate-700 text-slate-200 px-4 py-2 rounded-lg cursor-pointer">Elegir fotos de la galería
+                    <input id="attachmentPhotos" type="file" accept="image/*" multiple aria-label="Elegir fotos de la galería" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer">
                 </label>
+                <p id="fileUploadStatus" role="status" aria-live="polite" class="text-xs text-blue-300"></p>
 
                 <div id="fileList" class="space-y-2 mt-2"></div>
                 <p id="emptyFiles" class="text-xs text-slate-500 italic hidden">Sin archivos adjuntos todavía.</p>
             </div>
 
             <div class="px-6 py-4 border-t border-slate-700 flex justify-end">
-                <button onclick="closeFileModal()" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium text-sm">Cerrar</button>
+                <button type="button" onclick="closeFileModal()" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium text-sm">Cerrar</button>
             </div>
         </div>
     </div>
@@ -1013,6 +1019,7 @@
         </div>
     </div>
 
+    <script src="local-store.js"></script>
     <!-- LOGICA SCRIPT -->
     <script>
         const STORAGE_KEY = 'work_orders_app_data';
@@ -1025,7 +1032,11 @@
         let currentView = 'orders';
         let currentFormType = 'order'; // 'order' | 'quote' — controla dónde se guarda el formulario abierto
 
-        document.addEventListener('DOMContentLoaded', () => {
+        let resolveOrdenproReady;
+        window.ordenproReady = new Promise(resolve => { resolveOrdenproReady = resolve; });
+        document.addEventListener('DOMContentLoaded', async () => {
+            try { await window.OrdenProStorage.ready; }
+            catch(e) { alert('No se pudieron recuperar los datos locales. No borres los datos del navegador.'); return; }
             loadOrders();
             loadQuotes();
             loadInvoices();
@@ -1036,6 +1047,7 @@
             document.getElementById('orderDate').valueAsDate = new Date();
             setupInstallUI();
             switchView('orders');
+            resolveOrdenproReady();
         });
 
         // Migración de compatibilidad: alguna orden puede haber quedado marcada como
@@ -1099,8 +1111,8 @@
             });
 
             if (changed) {
-                localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+                window.OrdenProStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
+                window.OrdenProStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
             }
         }
 
@@ -1237,7 +1249,7 @@
         }
 
         function loadOrders() {
-            const data = localStorage.getItem(STORAGE_KEY);
+            const data = window.OrdenProStorage.getItem(STORAGE_KEY);
             if (data) {
                 try {
                     orders = JSON.parse(data);
@@ -1250,13 +1262,13 @@
         }
 
         function saveOrders() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+            window.OrdenProStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
             renderOrders();
             window.ordenproCloud?.changed();
         }
 
         function loadQuotes() {
-            const data = localStorage.getItem(QUOTES_STORAGE_KEY);
+            const data = window.OrdenProStorage.getItem(QUOTES_STORAGE_KEY);
             if (data) {
                 try {
                     quotes = JSON.parse(data);
@@ -1269,13 +1281,13 @@
         }
 
         function saveQuotes() {
-            localStorage.setItem(QUOTES_STORAGE_KEY, JSON.stringify(quotes));
+            window.OrdenProStorage.setItem(QUOTES_STORAGE_KEY, JSON.stringify(quotes));
             renderQuotes();
             window.ordenproCloud?.changed();
         }
 
         function loadInvoices() {
-            const data = localStorage.getItem(INVOICES_STORAGE_KEY);
+            const data = window.OrdenProStorage.getItem(INVOICES_STORAGE_KEY);
             if (data) {
                 try {
                     invoices = JSON.parse(data);
@@ -1288,7 +1300,7 @@
         }
 
         function saveInvoices() {
-            localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
+            window.OrdenProStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(invoices));
             renderInvoices();
             window.ordenproCloud?.changed();
         }
@@ -3012,6 +3024,7 @@
                     img.src = e.target.result;
                 };
                 reader.onerror = reject;
+                reader.onabort = () => reject(new Error('Lectura cancelada.'));
                 reader.readAsDataURL(file);
             });
         }
@@ -3099,6 +3112,7 @@
             currentFileOrderId = orderId;
             currentFileSource = source;
             document.getElementById('fileModalOrderNum').innerText = order.orderNum;
+            document.getElementById('fileUploadStatus').textContent = '';
             renderFileList();
             document.getElementById('fileModal').classList.remove('hidden');
         }
@@ -3133,7 +3147,7 @@
                         <i class="fa-solid ${isImage ? 'fa-image' : 'fa-file-pdf'}"></i>
                     </div>
                     <a href="${file.dataUrl}" target="_blank" rel="noopener" class="flex-1 min-w-0 text-slate-200 text-sm truncate hover:text-blue-400">${escapeHtml(file.name)}</a>
-                    <button onclick="removeFile(${idx})" title="Eliminar" class="text-rose-400 hover:text-rose-300 p-1.5">
+                    <button type="button" onclick="removeFile(${idx})" title="Eliminar" class="text-rose-400 hover:text-rose-300 p-1.5">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
                 `;
@@ -3146,32 +3160,64 @@
                 const reader = new FileReader();
                 reader.onload = (e) => resolve(e.target.result);
                 reader.onerror = reject;
+                reader.onabort = () => reject(new Error('Lectura cancelada.'));
                 reader.readAsDataURL(file);
             });
         }
 
-        async function handleFileAdd(event) {
-            const files = Array.from(event.target.files || []);
-            if (files.length === 0) return;
-
-            const list = currentFileSource === 'quotes' ? quotes : orders;
-            const order = list.find(o => o.id === currentFileOrderId);
-            if (!order) return;
-            if (!order.attachedFiles) order.attachedFiles = [];
-
-            for (const file of files) {
-                try {
-                    const dataUrl = await readFileAsDataUrl(file);
-                    order.attachedFiles.push({ name: file.name, type: file.type, dataUrl });
-                } catch (err) {
-                    console.warn('No se pudo cargar un archivo:', err);
-                }
-            }
-
-            event.target.value = '';
-            if (currentFileSource === 'quotes') { saveQuotes(); } else { saveOrders(); }
-            renderFileList();
+        let fileUploadBusy = false;
+        function setFileUploadBusy(busy) {
+            fileUploadBusy=busy;window.ordenproFileUploadBusy=busy;
+            for(const id of ['attachmentInput','attachmentPhotos'])document.getElementById(id).disabled=busy;
         }
+
+        async function handleFileAdd(event) {
+            const input=event?.target,files=Array.from(event?.dataTransfer?.files||input?.files||[]);
+            if(input?.type==='file')input.value='';
+            if(!files.length||fileUploadBusy)return;
+            const source=currentFileSource,id=currentFileOrderId;
+            const order=(source==='quotes'?quotes:orders).find(o=>o.id===id);
+            if(!order)return;
+            const status=document.getElementById('fileUploadStatus'),added=[],errors=[];
+            setFileUploadBusy(true);
+            try {
+                for(let i=0;i<files.length;i++){
+                    const file=files[i];status.textContent='Leyendo archivo '+(i+1)+' de '+files.length+'…';
+                    try {added.push({name:file.name,type:file.type||'application/octet-stream',size:file.size,dataUrl:await readFileAsDataUrl(file)});}
+                    catch(e){errors.push(file.name);}
+                }
+                if(added.length){
+                    if(!order.attachedFiles)order.attachedFiles=[];
+                    order.attachedFiles.push(...added);
+                    try {
+                        if(source==='quotes')saveQuotes();else saveOrders();
+                        await window.OrdenProStorage.flush();
+                    } catch(error) {
+                        order.attachedFiles=order.attachedFiles.filter(f=>!added.includes(f));
+                        if(source==='quotes')saveQuotes();else saveOrders();
+                        throw error;
+                    }
+                }
+                if(currentFileOrderId===id&&currentFileSource===source){
+                    renderFileList();
+                    status.textContent=(added.length?added.length+' archivo(s) guardado(s). ':'')+(errors.length?'No se pudieron leer: '+errors.join(', ')+'. Vuelve a seleccionarlos.':'');
+                }
+            } catch(error) {
+                status.textContent='No se pudieron guardar los archivos. Revisa el espacio disponible o prueba con un archivo más pequeño.';
+                console.error('Error al guardar adjuntos:',error);
+            } finally {setFileUploadBusy(false);}
+        }
+
+        function setupFileUpload() {
+            for(const id of ['attachmentInput','attachmentPhotos'])document.getElementById(id).addEventListener('change',handleFileAdd);
+            const zone=document.getElementById('fileDropZone');
+            for(const type of ['dragenter','dragover'])zone.addEventListener(type,event=>{event.preventDefault();if(event.dataTransfer)event.dataTransfer.dropEffect='copy';zone.classList.add('border-blue-400');});
+            for(const type of ['dragleave','drop'])zone.addEventListener(type,event=>{event.preventDefault();zone.classList.remove('border-blue-400');});
+            zone.addEventListener('drop',handleFileAdd);
+            document.getElementById('fileModal').addEventListener('dragover',event=>event.preventDefault());
+            document.getElementById('fileModal').addEventListener('drop',event=>event.preventDefault());
+        }
+        document.addEventListener('DOMContentLoaded',setupFileUpload);
 
         function removeFile(index) {
             const list = currentFileSource === 'quotes' ? quotes : orders;
@@ -3179,6 +3225,7 @@
             if (!order) return;
             if (!confirm('¿Eliminar este archivo?')) return;
 
+            if(fileUploadBusy)return;
             order.attachedFiles.splice(index, 1);
             if (currentFileSource === 'quotes') { saveQuotes(); } else { saveOrders(); }
             renderFileList();
@@ -3298,9 +3345,9 @@
         window.ordenproData = {
             read: () => ({orders, quotes, invoices}),
             apply: data => {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(data.orders));
-                localStorage.setItem(QUOTES_STORAGE_KEY, JSON.stringify(data.quotes));
-                localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(data.invoices));
+                window.OrdenProStorage.setItem(STORAGE_KEY, JSON.stringify(data.orders));
+                window.OrdenProStorage.setItem(QUOTES_STORAGE_KEY, JSON.stringify(data.quotes));
+                window.OrdenProStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(data.invoices));
                 orders = data.orders; quotes = data.quotes; invoices = data.invoices;
                 renderOrders(); renderQuotes(); renderInvoices();
             }

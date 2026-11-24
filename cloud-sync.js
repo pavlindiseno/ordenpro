@@ -29,7 +29,7 @@
   const count=data=>core.names.reduce((n,k)=>n+data[k].length,0);
   const el=id=>document.getElementById(id);
   function status(message) { el('cloudStatus').textContent=message; el('cloudBadge').textContent=message; }
-  function modalOpen() { return document.activeElement?.hasAttribute?.('data-order-status') || ['orderModal','photoModal','fileModal'].some(id=>el(id)&&!el(id).classList.contains('hidden')); }
+  function modalOpen() { return window.ordenproFileUploadBusy || document.activeElement?.hasAttribute?.('data-order-status') || ['orderModal','photoModal','fileModal'].some(id=>el(id)&&!el(id).classList.contains('hidden')); }
   async function saveState() { await stateIO(true); localStorage.setItem(STATE,String(Date.now())); }
   function backup(data) {
     const blob=new Blob([JSON.stringify({...data,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
@@ -155,6 +155,7 @@
     }
   };
   document.addEventListener('DOMContentLoaded',async ()=>{
+    await window.ordenproReady;
     try {state=await stateIO(false);} catch(error){blocked=true;report(error);return;}
     if(state?.journal) {
       try {
