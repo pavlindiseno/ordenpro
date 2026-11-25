@@ -1,0 +1,25 @@
+// Requires jsdom: npm install --no-save jsdom
+const fs=require('fs'),assert=require('node:assert/strict'),{JSDOM}=require('jsdom'),root=__dirname+'/';
+const html=fs.readFileSync(root+'index.html','utf8'),dom=new JSDOM('<body><div id="customCostRows"></div><p id="emptyCustomCost"></p><span id="customCostTotalAmount"></span><input id="jobTitle"><input id="jobQuantity"></body>',{runScripts:'outside-only'}),w=dom.window,d=w.document;
+w.HTMLDialogElement.prototype.showModal=function(){this.open=true};w.HTMLDialogElement.prototype.close=function(){this.open=false};
+w.alert=m=>{throw Error(m)};w.confirm=()=>true;w.escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+w.getVinylRowField=(type,id,k)=>d.querySelector('[data-row="'+type+'_'+id+'"][data-field="'+k+'"]')?.value||'';w.updateCostTotals=()=>{};
+w.eval(html.slice(html.indexOf('let customCostRowIds ='),html.indexOf('// Suma un array de filas "Otros"')));
+for(const f of ['plotter-core.js','plotter-ui.js'])w.eval(fs.readFileSync(root+f,'utf8'));
+const put=(id,value)=>{const e=d.getElementById('plt_'+id);e.value=value;e.dispatchEvent(new w.Event('input',{bubbles:true}));};
+const submit=()=>d.getElementById('plt_form').dispatchEvent(new w.Event('submit',{cancelable:true}));
+w.addCustomCostRow({name:'Montaje',amount:20});w.ordenproPlotterUI.open();d.querySelector('[data-category="textile"]').click();
+assert.equal(d.getElementById('plt_standard').hidden,true);assert.equal(d.getElementById('plt_textile').hidden,false);
+assert.equal(d.getElementById('plt_smallPrice').value,'4');assert.equal(d.getElementById('plt_largePrice').value,'6');
+assert.equal(d.getElementById('plt_garmentType').value,'');put('smallQty',3);put('largeQty',2);put('notes','Ropa del cliente · logo de empresa');submit();
+d.querySelector('[data-category="textile"]').click();put('textileMode','garments');put('garmentType','sudadera');put('garmentQty',10);put('front','small');put('back','large');put('clothingSource','ours');put('garmentPrice',12);put('notes','Delante escudo; detrás nombres');
+assert.equal(d.getElementById('plt_textileTotals').hidden,true);assert.equal(d.getElementById('plt_textileSides').hidden,false);submit();d.getElementById('plt_apply').click();
+let saved=w.ordenproPlotterUI.readSaved(),rows=w.collectCustomCostRows();assert.equal(saved.items.length,2);assert.equal(rows.length,3);assert.equal(+rows[1].amount,24);assert.equal(+rows[2].amount,220);assert.ok(rows[2].notes.includes('Delante: pequeño'));assert.ok(rows[2].notes.includes('Detrás: grande'));assert.ok(rows[2].notes.includes('Ropa suministrada'));
+const id=saved.items[1].id,stored=JSON.parse(JSON.stringify({saved,rows}));w.resetCustomCostRows();w.ordenproPlotterUI.load(stored.saved);stored.rows.forEach(r=>w.addCustomCostRow(r));
+const row=d.querySelector('[data-estimate-id="'+id+'"]');w.editEstimatedCostRow(row.id.replace('row_customCost_',''));
+assert.equal(d.getElementById('plt_garmentQty').value,'10');assert.equal(d.getElementById('plt_front').value,'small');assert.equal(d.getElementById('plt_garmentType').value,'sudadera');assert.equal(d.getElementById('plt_notes').value,'Delante escudo; detrás nombres');
+put('smallPrice',3);put('largePrice',5);submit();rows=w.collectCustomCostRows();assert.equal(+rows[2].amount,200);assert.equal(+rows[1].amount,24);assert.equal(rows[0].name,'Montaje');assert.equal(d.getElementById('plotterDialog').open,false);
+w.ordenproPlotterUI.open();d.querySelector('[data-action="duplicate"][data-index="1"]').click();d.getElementById('plt_apply').click();saved=w.ordenproPlotterUI.readSaved();assert.equal(saved.items.length,3);assert.notEqual(saved.items[1].id,saved.items[2].id);
+w.ordenproPlotterUI.editSaved(saved.items[2].id);put('clothingSource','client');submit();assert.equal(w.ordenproPlotterUI.readSaved().items[2].result.total,80);
+w.ordenproPlotterUI.open();d.querySelector('[data-category="materials"]').click();assert.equal(d.getElementById('plt_textile').hidden,true);assert.equal(d.getElementById('plt_standard').hidden,false);put('qty',1);put('width',1000);put('height',1000);submit();d.getElementById('plt_apply').click();assert.equal(w.ordenproPlotterUI.readSaved().items.length,4);
+console.log('PASS: Textile tab, optional garment, default/custom prices, totals/sides, supplied clothing, observations, apply/reload/direct edit, duplicates, other lines and catalogue navigation');

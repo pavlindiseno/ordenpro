@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ordenpro-cache-v54-open-attachments-as-files';
+const CACHE_NAME = 'ordenpro-cache-v55-textile-estimates';
 
 // Archivos propios de la app: SIEMPRE deben poder cachearse (están en el mismo sitio)
 const LOCAL_ASSETS = [

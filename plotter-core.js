@@ -49,7 +49,25 @@ function materialArea(p){
  }
  return {area,billedArea:Math.max(area,consumedArea),consumedArea:Math.max(area,consumedArea),wasteArea:Math.max(0,consumedArea-area),rollWidth,runLength,sheets,source};
 }
+function calculateTextile(p){
+ const integer=(value,label)=>{const n=Number(value??0);if(!Number.isInteger(n)||n<0)throw Error('Revisa '+label+': debe ser un número entero sin negativos.');return n;};
+ const price=(value,label)=>{if(value===''||value==null)throw Error('Indica '+label+'.');const n=Number(value);if(!Number.isFinite(n)||n<0)throw Error('Revisa '+label+'.');return n;};
+ const garmentQty=integer(p.garmentQty,'la cantidad de prendas'),byGarment=p.textileMode==='garments';
+ const smallPrice=price(p.smallPrice??4,'el precio del grabado pequeño'),largePrice=price(p.largePrice??6,'el precio del grabado grande');
+ let smallQty,largeQty;
+ if(byGarment){
+  if(garmentQty<1)throw Error('Indica la cantidad de prendas.');
+  if(!['none','small','large'].includes(p.front)||!['none','small','large'].includes(p.back))throw Error('Selecciona los grabados de delante y detrás.');
+  smallQty=garmentQty*([p.front,p.back].filter(v=>v==='small').length);
+  largeQty=garmentQty*([p.front,p.back].filter(v=>v==='large').length);
+ }else{smallQty=integer(p.smallQty,'los grabados pequeños');largeQty=integer(p.largeQty,'los grabados grandes');}
+ const garmentPrice=p.clothingSource==='ours'?price(p.garmentPrice===''?0:p.garmentPrice??0,'el precio de la prenda'):0;
+ const garmentAmount=garmentQty*garmentPrice,smallAmount=smallQty*smallPrice,largeAmount=largeQty*largePrice,total=smallAmount+largeAmount+garmentAmount;
+ if(smallQty+largeQty===0&&garmentAmount===0)throw Error('Añade al menos un grabado o una prenda con precio.');
+ return {smallQty,largeQty,smallPrice,largePrice,smallAmount,largeAmount,garmentQty,garmentPrice,garmentAmount,total,subtotal:total,unit:total/(garmentQty||smallQty+largeQty),area:0,base:total};
+}
 function calculate(p){
+ if(p.kind==='textile')return calculateTextile(p);
  const product=products[+p.product];if(!product||product.retired)throw Error('Selecciona un producto de la tarifa actual.');
  const qty=+p.qty,price=p.price===''||p.price==null?NaN:+p.price;
  if(!Number.isInteger(qty)||qty<1)throw Error('La cantidad debe ser entera y mayor que cero.');
@@ -76,5 +94,5 @@ function migrate(saved){
  const product=products[+saved.product];
  return [{...saved,legacy:true,label:(product?.name||'Partida anterior')+(product?.size?' · '+product.size:''),result:{...saved.result,total:+saved.result?.total||0}}];
 }
-root.OrdenProPlotter={products,calculate,materialArea,legacyCalculate,migrate};if(typeof module!=='undefined')module.exports=root.OrdenProPlotter;
+root.OrdenProPlotter={products,calculate,calculateTextile,materialArea,legacyCalculate,migrate};if(typeof module!=='undefined')module.exports=root.OrdenProPlotter;
 })(globalThis);
